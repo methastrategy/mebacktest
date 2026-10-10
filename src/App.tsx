@@ -4,6 +4,7 @@ import { AccountState, OrderType } from './types/trade';
 import { parseCandleCsv } from './core/DataParser';
 import { ReplayEngine } from './core/ReplayEngine';
 import { GoldTradingEngine } from './core/GoldTradingEngine';
+import { PropFirmEngine, PropFirmState } from './core/PropFirmEngine';
 import { TopNavbar } from './components/TopNavbar';
 import { TradingChart } from './components/TradingChart';
 import { ReplayControls } from './components/ReplayControls';
@@ -12,6 +13,7 @@ import { AccountSummary } from './components/AccountSummary';
 import { PositionList } from './components/PositionList';
 import { PerformanceModal } from './components/PerformanceModal';
 import { ShortcutsHelpModal } from './components/ShortcutsHelpModal';
+import { PropFirmHUD } from './components/PropFirmHUD';
 
 export const App: React.FC = () => {
   const [timeframe, setTimeframe] = useState<Timeframe>('M15');
@@ -23,13 +25,17 @@ export const App: React.FC = () => {
 
   const [spreadPips, setSpreadPips] = useState<number>(25);
 
+  // Prop Firm Mode State
+  const [isPropModeEnabled, setIsPropModeEnabled] = useState<boolean>(false);
+
   // Modals
   const [isPerfModalOpen, setIsPerfModalOpen] = useState<boolean>(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState<boolean>(false);
 
   // Engines Refs (Preserve state across renders)
   const replayEngineRef = useRef<ReplayEngine>(new ReplayEngine());
-  const tradingEngineRef = useRef<GoldTradingEngine>(new GoldTradingEngine(10000, 25));
+  const tradingEngineRef = useRef<GoldTradingEngine>(new GoldTradingEngine(100000, 25));
+  const propFirmEngineRef = useRef<PropFirmEngine>(new PropFirmEngine({ initialBalance: 100000 }));
   const playTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Reactive state for UI
@@ -39,6 +45,9 @@ export const App: React.FC = () => {
   const [totalBars, setTotalBars] = useState<number>(0);
   const [accountState, setAccountState] = useState<AccountState>(() =>
     tradingEngineRef.current.getState()
+  );
+  const [propFirmState, setPropFirmState] = useState<PropFirmState>(() =>
+    propFirmEngineRef.current.getStatus()
   );
 
   // Load dataset for given timeframe
@@ -99,7 +108,9 @@ export const App: React.FC = () => {
     // in TradingChart, eliminating setData() overhead and locking 60 FPS.
     setCurrentBar(nextBar);
     setCursorIndex(replay.getCurrentCursor());
-    setAccountState(trader.getState());
+    const acc = trader.getState();
+    setAccountState(acc);
+    setPropFirmState(propFirmEngineRef.current.updateEquity(acc.equity, acc.balance, nextBar.time));
   }, []);
 
   // Play / Pause loop
@@ -182,6 +193,7 @@ export const App: React.FC = () => {
       stopLoss?: number;
       takeProfit?: number;
       spread?: number;
+      setupTag?: string;
     }) => {
       if (!currentBar) return;
 
@@ -194,9 +206,12 @@ export const App: React.FC = () => {
         stopLoss: params.stopLoss,
         takeProfit: params.takeProfit,
         spread: params.spread !== undefined ? params.spread : spreadPips,
+        setupTag: params.setupTag,
       });
 
-      setAccountState(tradingEngineRef.current.getState());
+      const acc = tradingEngineRef.current.getState();
+      setAccountState(acc);
+      setPropFirmState(propFirmEngineRef.current.updateEquity(acc.equity, acc.balance, currentBar.time));
     },
     [currentBar, cursorIndex, spreadPips]
   );
@@ -206,7 +221,9 @@ export const App: React.FC = () => {
     (id: string) => {
       if (!currentBar) return;
       tradingEngineRef.current.closePosition(id, currentBar.close, currentBar.time, 'MANUAL');
-      setAccountState(tradingEngineRef.current.getState());
+      const acc = tradingEngineRef.current.getState();
+      setAccountState(acc);
+      setPropFirmState(propFirmEngineRef.current.updateEquity(acc.equity, acc.balance, currentBar.time));
     },
     [currentBar]
   );
@@ -214,29 +231,54 @@ export const App: React.FC = () => {
   // Move position SL to Break-Even (Entry Price)
   const handleMoveToBreakEven = useCallback((id: string) => {
     tradingEngineRef.current.moveToBreakEven(id);
-    setAccountState(tradingEngineRef.current.getState());
-  }, []);
+    const acc = tradingEngineRef.current.getState();
+    setAccountState(acc);
+    if (currentBar) {
+      setPropFirmState(propFirmEngineRef.current.updateEquity(acc.equity, acc.balance, currentBar.time));
+    }
+  }, [currentBar]);
 
   // Partially close position (e.g. 50%)
   const handlePartialClose = useCallback(
     (id: string, ratio: number = 0.5) => {
       if (!currentBar) return;
       tradingEngineRef.current.partialClosePosition(id, ratio, currentBar.close, currentBar.time);
-      setAccountState(tradingEngineRef.current.getState());
+      const acc = tradingEngineRef.current.getState();
+      setAccountState(acc);
+      setPropFirmState(propFirmEngineRef.current.updateEquity(acc.equity, acc.balance, currentBar.time));
     },
     [currentBar]
   );
 
-  // Reset Session
-  const handleResetSession = useCallback(() => {
-    if (window.confirm('ต้องการรีเซ็ตยอดเงินและประวัติการเทรดทั้งหมดหรือไม่?')) {
-      tradingEngineRef.current.reset(10000, spreadPips);
+  // Select Prop Firm Challenge Account Size
+  const handleSelectAccountSize = useCallback(
+    (size: number) => {
+      tradingEngineRef.current.reset(size, spreadPips);
+      propFirmEngineRef.current.reset(size);
       if (currentBar) {
         tradingEngineRef.current.updateMarketPrice(currentBar.close);
       }
-      setAccountState(tradingEngineRef.current.getState());
+      const acc = tradingEngineRef.current.getState();
+      setAccountState(acc);
+      if (currentBar) {
+        setPropFirmState(propFirmEngineRef.current.updateEquity(acc.equity, acc.balance, currentBar.time));
+      } else {
+        setPropFirmState(propFirmEngineRef.current.getStatus());
+      }
+    },
+    [currentBar, spreadPips]
+  );
+
+  const handleResetChallenge = useCallback(() => {
+    handleSelectAccountSize(propFirmState.initialBalance);
+  }, [handleSelectAccountSize, propFirmState.initialBalance]);
+
+  // Reset Session
+  const handleResetSession = useCallback(() => {
+    if (window.confirm('ต้องการรีเซ็ตยอดเงินและประวัติการเทรดทั้งหมดหรือไม่?')) {
+      handleSelectAccountSize(propFirmState.initialBalance);
     }
-  }, [currentBar, spreadPips]);
+  }, [handleSelectAccountSize, propFirmState.initialBalance]);
 
   // Custom CSV Upload
   const handleCustomCsvUpload = useCallback((csvText: string, filename: string) => {
@@ -325,6 +367,17 @@ export const App: React.FC = () => {
       <div className="flex-1 flex overflow-hidden relative">
         {/* Left / Center Area: Candlestick Chart */}
         <div className="flex-1 relative flex flex-col h-full overflow-hidden">
+          {/* Prop Firm Challenge HUD Ribbon (Top Right) */}
+          <div className="absolute top-3 right-4 z-20">
+            <PropFirmHUD
+              isEnabled={isPropModeEnabled}
+              onToggleEnabled={() => setIsPropModeEnabled((prev) => !prev)}
+              state={propFirmState}
+              onSelectAccountSize={handleSelectAccountSize}
+              onResetChallenge={handleResetChallenge}
+            />
+          </div>
+
           <TradingChart
             bars={visibleBars}
             currentBar={currentBar}

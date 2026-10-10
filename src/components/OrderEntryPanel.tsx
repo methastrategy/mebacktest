@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowUpCircle, ArrowDownCircle, ShieldAlert, Target, DollarSign } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, ShieldAlert, Target, DollarSign, Tag } from 'lucide-react';
 import { OrderType } from '../types/trade';
 
 interface OrderEntryPanelProps {
@@ -10,6 +10,7 @@ interface OrderEntryPanelProps {
     stopLoss?: number;
     takeProfit?: number;
     spread?: number;
+    setupTag?: string;
   }) => void;
   clickedPrice?: number;
   spreadPips?: number;
@@ -18,18 +19,27 @@ interface OrderEntryPanelProps {
 
 const LOT_PRESETS = [0.01, 0.05, 0.1, 0.25, 0.5, 1.0];
 const SPREAD_PRESETS = [0, 15, 25, 40];
+const SETUP_TAGS = [
+  'Liquidity Sweep',
+  'Break of Structure',
+  'Fair Value Gap',
+  'Trend Pullback',
+  'ChoCH Reversal',
+  'Range Scalp',
+];
 
 export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
   currentPrice,
   onPlaceOrder,
   clickedPrice,
-  spreadPips = 25,
+  spreadPips = 20,
   onChangeSpread,
 }) => {
   const [volume, setVolume] = useState<number>(0.1);
   const [stopLoss, setStopLoss] = useState<string>('');
   const [takeProfit, setTakeProfit] = useState<string>('');
   const [targetType, setTargetType] = useState<OrderType>('BUY');
+  const [setupTag, setSetupTag] = useState<string>('Liquidity Sweep');
 
   const spreadOffset = spreadPips / 100.0;
   const askPrice = currentPrice > 0 ? currentPrice + spreadOffset : 0;
@@ -109,6 +119,7 @@ export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
       stopLoss: parsedSL,
       takeProfit: parsedTP,
       spread: spreadPips,
+      setupTag,
     });
   };
 
@@ -120,6 +131,7 @@ export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
       stopLoss: parsedSL,
       takeProfit: parsedTP,
       spread: spreadPips,
+      setupTag,
     });
   };
 
@@ -320,6 +332,28 @@ export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Setup Tag Selector */}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="flex items-center gap-1 text-tv-muted font-medium">
+            <Tag size={12} className="text-indigo-400" />
+            Setup Model (Strategy Tag):
+          </span>
+          <span className="text-[11px] text-indigo-300 font-mono font-medium">{setupTag}</span>
+        </div>
+        <select
+          value={setupTag}
+          onChange={(e) => setSetupTag(e.target.value)}
+          className="bg-tv-bg border border-tv-border rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium"
+        >
+          {SETUP_TAGS.map((tag) => (
+            <option key={tag} value={tag}>
+              {tag}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* R:R Ratio Preview */}

@@ -20,6 +20,7 @@ export interface Position {
   realizedPnL?: number;
   closeReason?: string;
   spread?: number;
+  setupTag?: string;
 }
 
 export interface AccountState {

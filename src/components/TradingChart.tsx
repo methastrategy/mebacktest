@@ -11,6 +11,7 @@ import {
 import { CandleBar } from '../types/candle';
 import { Position } from '../types/trade';
 import { calculateEMA, calculateNextEMA } from '../core/indicators';
+import { MousePointer, Minus, Layers, Trash2 } from 'lucide-react';
 
 interface TradingChartProps {
   bars: CandleBar[];
@@ -51,6 +52,12 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   // Shift (rightOffset margin) & Auto-Scroll state
   const [rightOffset, setRightOffset] = useState<number>(20);
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
+
+  // Drawing Tools State
+  const [activeTool, setActiveTool] = useState<'NONE' | 'LINE' | 'SUPPLY' | 'DEMAND'>('NONE');
+  const activeToolRef = useRef<'NONE' | 'LINE' | 'SUPPLY' | 'DEMAND'>('NONE');
+  const customLinesRef = useRef<IPriceLine[]>([]);
+  const [customDrawingCount, setCustomDrawingCount] = useState<number>(0);
 
   // Initialize chart
   useEffect(() => {
@@ -162,17 +169,72 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     ema50SeriesRef.current = ema50;
     ema200SeriesRef.current = ema200;
 
-    // Click handler on chart
-    if (onPriceClick) {
-      chart.subscribeClick((param) => {
-        if (param.point && seriesRef.current) {
-          const price = seriesRef.current.coordinateToPrice(param.point.y);
-          if (price !== null) {
-            onPriceClick(Math.round(price * 100) / 100);
+    // Click handler on chart (Handles drawings & order fill)
+    chart.subscribeClick((param) => {
+      if (param.point && seriesRef.current) {
+        const rawPrice = seriesRef.current.coordinateToPrice(param.point.y);
+        if (rawPrice === null) return;
+        const price = Math.round(rawPrice * 100) / 100;
+
+        if (activeToolRef.current !== 'NONE') {
+          if (activeToolRef.current === 'LINE') {
+            const line = seriesRef.current.createPriceLine({
+              price,
+              color: '#f59e0b',
+              lineWidth: 2,
+              lineStyle: LineStyle.Solid,
+              axisLabelVisible: true,
+              title: `Level ${price.toFixed(2)}`,
+            });
+            customLinesRef.current.push(line);
+          } else if (activeToolRef.current === 'SUPPLY') {
+            const top = seriesRef.current.createPriceLine({
+              price: price + 1.5,
+              color: '#ef4444',
+              lineWidth: 1,
+              lineStyle: LineStyle.Dashed,
+              axisLabelVisible: true,
+              title: `Supply Top`,
+            });
+            const bottom = seriesRef.current.createPriceLine({
+              price,
+              color: '#ef4444',
+              lineWidth: 2,
+              lineStyle: LineStyle.Solid,
+              axisLabelVisible: true,
+              title: `Supply Zone`,
+            });
+            customLinesRef.current.push(top, bottom);
+          } else if (activeToolRef.current === 'DEMAND') {
+            const top = seriesRef.current.createPriceLine({
+              price,
+              color: '#10b981',
+              lineWidth: 2,
+              lineStyle: LineStyle.Solid,
+              axisLabelVisible: true,
+              title: `Demand Zone`,
+            });
+            const bottom = seriesRef.current.createPriceLine({
+              price: price - 1.5,
+              color: '#10b981',
+              lineWidth: 1,
+              lineStyle: LineStyle.Dashed,
+              axisLabelVisible: true,
+              title: `Demand Bottom`,
+            });
+            customLinesRef.current.push(top, bottom);
           }
+          setCustomDrawingCount(customLinesRef.current.length);
+          setActiveTool('NONE');
+          activeToolRef.current = 'NONE';
+          return;
         }
-      });
-    }
+
+        if (onPriceClick) {
+          onPriceClick(price);
+        }
+      }
+    });
 
     // Resize observer
     const handleResize = () => {
@@ -457,10 +519,91 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     }
   };
 
+  const handleSelectTool = (tool: 'NONE' | 'LINE' | 'SUPPLY' | 'DEMAND') => {
+    setActiveTool(tool);
+    activeToolRef.current = tool;
+  };
+
+  const handleClearDrawings = () => {
+    if (!seriesRef.current) return;
+    for (const line of customLinesRef.current) {
+      seriesRef.current.removePriceLine(line);
+    }
+    customLinesRef.current = [];
+    setCustomDrawingCount(0);
+  };
+
   return (
     <div className="relative w-full h-full flex flex-col bg-tv-bg">
       {/* Chart Canvas */}
       <div ref={containerRef} className="w-full flex-1" />
+
+      {/* Left-Side Vertical Drawing Toolbar */}
+      <div className="absolute top-16 left-4 z-20 flex flex-col gap-1 bg-tv-surface/90 backdrop-blur border border-tv-border p-1 rounded-xl shadow-xl">
+        <button
+          onClick={() => handleSelectTool('NONE')}
+          className={`p-1.5 rounded-lg transition-all ${
+            activeTool === 'NONE'
+              ? 'bg-tv-blue text-white shadow-sm'
+              : 'text-tv-muted hover:text-white hover:bg-tv-bg'
+          }`}
+          title="Pointer / Normal Mode"
+        >
+          <MousePointer size={15} />
+        </button>
+
+        <button
+          onClick={() => handleSelectTool('LINE')}
+          className={`p-1.5 rounded-lg transition-all ${
+            activeTool === 'LINE'
+              ? 'bg-amber-600 text-white shadow-sm'
+              : 'text-tv-muted hover:text-amber-400 hover:bg-tv-bg'
+          }`}
+          title="Horizontal Ray (Key Level)"
+        >
+          <Minus size={15} />
+        </button>
+
+        <button
+          onClick={() => handleSelectTool('SUPPLY')}
+          className={`p-1.5 rounded-lg transition-all ${
+            activeTool === 'SUPPLY'
+              ? 'bg-red-600 text-white shadow-sm'
+              : 'text-tv-muted hover:text-red-400 hover:bg-tv-bg'
+          }`}
+          title="Supply Zone (Sell Box)"
+        >
+          <Layers size={15} className="rotate-180 text-red-400" />
+        </button>
+
+        <button
+          onClick={() => handleSelectTool('DEMAND')}
+          className={`p-1.5 rounded-lg transition-all ${
+            activeTool === 'DEMAND'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'text-tv-muted hover:text-emerald-400 hover:bg-tv-bg'
+          }`}
+          title="Demand Zone (Buy Box)"
+        >
+          <Layers size={15} className="text-emerald-400" />
+        </button>
+
+        {customDrawingCount > 0 && (
+          <button
+            onClick={handleClearDrawings}
+            className="p-1.5 rounded-lg text-tv-muted hover:text-red-400 hover:bg-tv-bg transition-colors border-t border-tv-border/50 mt-1"
+            title="Clear All Custom Drawings"
+          >
+            <Trash2 size={15} />
+          </button>
+        )}
+      </div>
+
+      {activeTool !== 'NONE' && (
+        <div className="absolute top-16 left-16 z-20 bg-indigo-950/90 border border-indigo-500/50 text-indigo-300 text-xs px-2.5 py-1 rounded-lg backdrop-blur shadow-lg animate-pulse">
+          คลิกบนกราฟเพื่อวาง {activeTool === 'LINE' ? 'เส้นแนวรับต้าน' : activeTool === 'SUPPLY' ? 'Supply Zone' : 'Demand Zone'}
+        </div>
+      )}
 
       {/* Floating Status Badge on Top-Left */}
       <div className="absolute top-3 left-4 flex items-center gap-2 pointer-events-none z-10">

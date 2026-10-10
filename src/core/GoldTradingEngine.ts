@@ -10,6 +10,7 @@ export interface OpenOrderParams {
   stopLoss?: number;
   takeProfit?: number;
   spread?: number;
+  setupTag?: string;
 }
 
 export class GoldTradingEngine {
@@ -76,6 +77,7 @@ export class GoldTradingEngine {
       pips: 0,
       status: 'OPEN',
       spread: effectiveSpread,
+      setupTag: params.setupTag,
     };
 
     this.openPositions.push(position);

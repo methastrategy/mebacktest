@@ -18,7 +18,7 @@ export const PerformanceModal: React.FC<PerformanceModalProps> = ({
   const exportCsv = () => {
     if (account.closedPositions.length === 0) return;
 
-    const headers = ['Trade ID', 'Type', 'Volume', 'Entry Price', 'Exit Price', 'Realized PnL ($)', 'Pips', 'Close Reason'];
+    const headers = ['Trade ID', 'Type', 'Volume', 'Entry Price', 'Exit Price', 'Realized PnL ($)', 'Pips', 'Setup Tag', 'Close Reason'];
     const rows = account.closedPositions.map((p) => [
       p.id,
       p.type,
@@ -27,6 +27,7 @@ export const PerformanceModal: React.FC<PerformanceModalProps> = ({
       p.exitPrice?.toFixed(2) || '-',
       (p.realizedPnL || 0).toFixed(2),
       p.pips.toFixed(1),
+      p.setupTag || 'Unspecified',
       p.status,
     ]);
 
@@ -42,6 +43,25 @@ export const PerformanceModal: React.FC<PerformanceModalProps> = ({
   };
 
   const isNetWin = account.realizedPnL >= 0;
+
+  // Strategy Setup Breakdown
+  const setupStats = React.useMemo(() => {
+    const map = new Map<string, { count: number; wins: number; pnl: number }>();
+    for (const p of account.closedPositions) {
+      const tag = p.setupTag || 'Unspecified';
+      const existing = map.get(tag) || { count: 0, wins: 0, pnl: 0 };
+      existing.count++;
+      if ((p.realizedPnL || 0) > 0) existing.wins++;
+      existing.pnl += (p.realizedPnL || 0);
+      map.set(tag, existing);
+    }
+    return Array.from(map.entries()).map(([tag, data]) => ({
+      tag,
+      count: data.count,
+      winRate: (data.wins / data.count) * 100,
+      pnl: data.pnl,
+    }));
+  }, [account.closedPositions]);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
@@ -121,6 +141,43 @@ export const PerformanceModal: React.FC<PerformanceModalProps> = ({
             </div>
           </div>
 
+          {/* Strategy Setup Performance Breakdown */}
+          {setupStats.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-indigo-400" />
+                <span>Strategy Setup Performance (Trade Model Analysis)</span>
+              </h3>
+              <div className="bg-tv-bg border border-tv-border rounded-xl overflow-x-auto">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-tv-surface/80 text-tv-muted uppercase font-mono text-[10px] border-b border-tv-border">
+                    <tr>
+                      <th className="py-2.5 px-3">Setup Model</th>
+                      <th className="py-2.5 px-3">Trades</th>
+                      <th className="py-2.5 px-3">Win Rate</th>
+                      <th className="py-2.5 px-3">Net Profit ($)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-tv-border font-mono">
+                    {setupStats.map((item) => (
+                      <tr key={item.tag} className="hover:bg-tv-surface/50 transition-colors">
+                        <td className="py-2 px-3 font-sans font-semibold text-white flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                          <span>{item.tag}</span>
+                        </td>
+                        <td className="py-2 px-3 text-tv-text">{item.count}</td>
+                        <td className="py-2 px-3 font-bold text-amber-300">{item.winRate.toFixed(1)}%</td>
+                        <td className={`py-2 px-3 font-bold ${item.pnl >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                          {item.pnl >= 0 ? '+' : ''}${item.pnl.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Trade History Table */}
           <div className="flex flex-col gap-2">
             <h3 className="text-sm font-semibold text-white">Closed Trades History</h3>
@@ -138,6 +195,7 @@ export const PerformanceModal: React.FC<PerformanceModalProps> = ({
                       <th className="py-2.5 px-3">Entry</th>
                       <th className="py-2.5 px-3">Exit</th>
                       <th className="py-2.5 px-3">Pips</th>
+                      <th className="py-2.5 px-3">Setup Tag</th>
                       <th className="py-2.5 px-3">PnL ($)</th>
                       <th className="py-2.5 px-3">Exit Reason</th>
                     </tr>
@@ -163,6 +221,9 @@ export const PerformanceModal: React.FC<PerformanceModalProps> = ({
                           <td className="py-2 px-3 text-tv-text">{p.exitPrice?.toFixed(2) || '-'}</td>
                           <td className={`py-2 px-3 ${isWin ? 'text-tv-green' : 'text-tv-red'}`}>
                             {p.pips >= 0 ? '+' : ''}{p.pips.toFixed(1)}p
+                          </td>
+                          <td className="py-2 px-3 text-indigo-300 font-sans text-[11px] font-medium">
+                            {p.setupTag || '-'}
                           </td>
                           <td className={`py-2 px-3 font-bold ${isWin ? 'text-tv-green' : 'text-tv-red'}`}>
                             {isWin ? '+' : ''}${ (p.realizedPnL || 0).toFixed(2) }

@@ -56,6 +56,11 @@ export const PositionList: React.FC<PositionListProps> = ({
                     <span className="font-mono text-xs text-white">
                       @{pos.entryPrice.toFixed(2)}
                     </span>
+                    {pos.setupTag && (
+                      <span className="text-[10px] bg-indigo-950/60 border border-indigo-500/30 text-indigo-300 px-1.5 py-0.5 rounded truncate max-w-[100px]" title={pos.setupTag}>
+                        {pos.setupTag}
+                      </span>
+                    )}
                   </div>
 
                   {/* Actions: BE, Close 50%, Close */}
