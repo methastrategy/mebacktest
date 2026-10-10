@@ -1,5 +1,6 @@
 import { CandleBar } from '../types/candle';
 import { AccountState, OrderType, Position } from '../types/trade';
+import { AssetSpec, getAssetSpec } from './AssetSpecs';
 
 export interface OpenOrderParams {
   type: OrderType;
@@ -22,15 +23,32 @@ export class GoldTradingEngine {
   private openPositions: Position[] = [];
   private closedPositions: Position[] = [];
   private currentMarketPrice: number = 0;
-  private spread: number = 0; // in pips (100 pips = $1.00)
+  private spread: number = 0; // in pips
+  private assetSymbol: string = 'XAUUSD';
+  private spec: AssetSpec = getAssetSpec('XAUUSD');
 
-  constructor(initialBalance: number = 10000, spreadPips: number = 0) {
+  constructor(initialBalance: number = 10000, spreadPips: number = 0, symbol: string = 'XAUUSD') {
     this.initialBalance = initialBalance;
     this.balance = initialBalance;
     this.peakEquity = initialBalance;
     this.maxDrawdown = 0;
     this.maxDrawdownPercent = 0;
     this.spread = Math.max(0, spreadPips);
+    this.assetSymbol = symbol;
+    this.spec = getAssetSpec(symbol);
+  }
+
+  public getAssetSymbol(): string {
+    return this.assetSymbol;
+  }
+
+  public getAssetSpec(): AssetSpec {
+    return this.spec;
+  }
+
+  public setAssetSymbol(symbol: string): void {
+    this.assetSymbol = symbol;
+    this.spec = getAssetSpec(symbol);
   }
 
   public getSpread(): number {
@@ -41,7 +59,7 @@ export class GoldTradingEngine {
     this.spread = Math.max(0, pips);
   }
 
-  public reset(balance: number = 10000, spreadPips?: number) {
+  public reset(balance: number = 10000, spreadPips?: number, symbol?: string) {
     this.initialBalance = balance;
     this.balance = balance;
     this.peakEquity = balance;
@@ -53,12 +71,16 @@ export class GoldTradingEngine {
     if (spreadPips !== undefined) {
       this.spread = Math.max(0, spreadPips);
     }
+    if (symbol !== undefined) {
+      this.assetSymbol = symbol;
+      this.spec = getAssetSpec(symbol);
+    }
   }
 
   public openMarketOrder(params: OpenOrderParams): Position {
     const id = `pos_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const effectiveSpread = params.spread !== undefined ? params.spread : this.spread;
-    const spreadOffset = effectiveSpread / 100.0;
+    const spreadOffset = effectiveSpread / this.spec.pipScale;
 
     // BUY enters at Ask (price + spread), SELL enters at Bid (price)
     const entryPrice = params.type === 'BUY' ? params.price + spreadOffset : params.price;
@@ -90,7 +112,7 @@ export class GoldTradingEngine {
     if (!pos) return null;
 
     const posSpread = pos.spread !== undefined ? pos.spread : this.spread;
-    const spreadOffset = posSpread / 100.0;
+    const spreadOffset = posSpread / this.spec.pipScale;
 
     // Determine current valuation price (Bid for BUY, Ask for SELL)
     const currentValuationPrice =
@@ -137,7 +159,7 @@ export class GoldTradingEngine {
     if (closedVolume <= 0 || remainingVolume <= 0) return null;
 
     const posSpread = pos.spread !== undefined ? pos.spread : this.spread;
-    const spreadOffset = posSpread / 100.0;
+    const spreadOffset = posSpread / this.spec.pipScale;
     // BUY closes at Bid (exitPrice); SELL closes at Ask (exitPrice + spread)
     const effectiveExitPrice = pos.type === 'SELL' ? exitPrice + spreadOffset : exitPrice;
     const pnl = this.calculatePnL(pos.type, pos.entryPrice, effectiveExitPrice, closedVolume);
@@ -192,7 +214,7 @@ export class GoldTradingEngine {
 
     const [pos] = this.openPositions.splice(index, 1);
     const posSpread = pos.spread !== undefined ? pos.spread : this.spread;
-    const spreadOffset = posSpread / 100.0;
+    const spreadOffset = posSpread / this.spec.pipScale;
 
     // In manual close: BUY closes at Bid, SELL closes at Ask
     // In SL/TP triggers: exitPrice is already the exact trigger fill price
@@ -221,7 +243,7 @@ export class GoldTradingEngine {
     this.currentMarketPrice = price;
     for (const pos of this.openPositions) {
       const posSpread = pos.spread !== undefined ? pos.spread : this.spread;
-      const spreadOffset = posSpread / 100.0;
+      const spreadOffset = posSpread / this.spec.pipScale;
       // BUY valued at Bid (price), SELL valued at Ask (price + spread)
       const currentPrice = pos.type === 'SELL' ? price + spreadOffset : price;
       pos.currentPrice = currentPrice;
@@ -237,7 +259,7 @@ export class GoldTradingEngine {
 
     for (const pos of this.openPositions) {
       const posSpread = pos.spread !== undefined ? pos.spread : this.spread;
-      const spreadOffset = posSpread / 100.0;
+      const spreadOffset = posSpread / this.spec.pipScale;
       let triggered = false;
       let exitPrice = 0;
       let reason: 'SL' | 'TP' = 'SL';
@@ -313,8 +335,7 @@ export class GoldTradingEngine {
   }
 
   public calculatePnL(type: OrderType, entryPrice: number, currentPrice: number, volume: number): number {
-    // 1 standard lot gold = 100 oz. $1 change = $100 per lot.
-    const multiplier = 100.0;
+    const multiplier = this.spec.multiplier;
     if (type === 'BUY') {
       return (currentPrice - entryPrice) * volume * multiplier;
     } else {
@@ -323,8 +344,7 @@ export class GoldTradingEngine {
   }
 
   public calculatePips(type: OrderType, entryPrice: number, currentPrice: number): number {
-    // In Gold, $1.00 move is 100 pips ($0.01 = 1 pip)
-    const pipScale = 100.0;
+    const pipScale = this.spec.pipScale;
     if (type === 'BUY') {
       return (currentPrice - entryPrice) * pipScale;
     } else {

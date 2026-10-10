@@ -5,6 +5,13 @@ import { parseCandleCsv } from './core/DataParser';
 import { ReplayEngine } from './core/ReplayEngine';
 import { GoldTradingEngine } from './core/GoldTradingEngine';
 import { PropFirmEngine, PropFirmState } from './core/PropFirmEngine';
+import { DataLakeService } from './core/DataLakeService';
+import { AuthService } from './core/AuthService';
+import { CloudSessionService } from './core/CloudSessionService';
+import { getAssetSpec } from './core/AssetSpecs';
+import { UserProfile } from './types/auth';
+import { CloudSessionRecord } from './types/cloud';
+
 import { TopNavbar } from './components/TopNavbar';
 import { TradingChart } from './components/TradingChart';
 import { ReplayControls } from './components/ReplayControls';
@@ -14,27 +21,55 @@ import { PositionList } from './components/PositionList';
 import { PerformanceModal } from './components/PerformanceModal';
 import { ShortcutsHelpModal } from './components/ShortcutsHelpModal';
 import { PropFirmHUD } from './components/PropFirmHUD';
+import { ChartWatermark } from './components/ChartWatermark';
+import { AuthModal } from './components/AuthModal';
+import { ProUpgradeModal } from './components/ProUpgradeModal';
+import { CloudSessionsModal } from './components/CloudSessionsModal';
+import { SocialShareModal } from './components/SocialShareModal';
+import { AffiliateModal } from './components/AffiliateModal';
+import { FeedbackModal } from './components/FeedbackModal';
+import { LandingPage } from './components/LandingPage';
+import { Eye, LogOut } from 'lucide-react';
 
 export const App: React.FC = () => {
+  const [currentSymbol, setCurrentSymbol] = useState<string>('XAUUSD');
   const [timeframe, setTimeframe] = useState<Timeframe>('M15');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [speedMs, setSpeedMs] = useState<number>(500);
   const [isBlindMode, setIsBlindMode] = useState<boolean>(false);
   const [clickedChartPrice, setClickedChartPrice] = useState<number | undefined>();
-
   const [spreadPips, setSpreadPips] = useState<number>(25);
 
   // Prop Firm Mode State
   const [isPropModeEnabled, setIsPropModeEnabled] = useState<boolean>(false);
 
+  // Commercial Landing Page Toggle
+  const [isLandingActive, setIsLandingActive] = useState<boolean>(false);
+
+  // Read-only Shared Session Mode
+  const [isReadOnlySession, setIsReadOnlySession] = useState<boolean>(false);
+  const [sharedSessionTitle, setSharedSessionTitle] = useState<string>('');
+
   // Modals
   const [isPerfModalOpen, setIsPerfModalOpen] = useState<boolean>(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState<boolean>(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState<boolean>(false);
+  const [upgradePlanInit, setUpgradePlanInit] = useState<string>('pro_monthly');
+  const [isCloudModalOpen, setIsCloudModalOpen] = useState<boolean>(false);
+  const [isSocialShareModalOpen, setIsSocialShareModalOpen] = useState<boolean>(false);
+  const [isAffiliateModalOpen, setIsAffiliateModalOpen] = useState<boolean>(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState<boolean>(false);
+
+  // User Profile
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() =>
+    AuthService.getInstance().getCurrentUser()
+  );
 
   // Engines Refs (Preserve state across renders)
   const replayEngineRef = useRef<ReplayEngine>(new ReplayEngine());
-  const tradingEngineRef = useRef<GoldTradingEngine>(new GoldTradingEngine(100000, 25));
+  const tradingEngineRef = useRef<GoldTradingEngine>(new GoldTradingEngine(100000, 25, 'XAUUSD'));
   const propFirmEngineRef = useRef<PropFirmEngine>(new PropFirmEngine({ initialBalance: 100000 }));
   const playTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -50,19 +85,22 @@ export const App: React.FC = () => {
     propFirmEngineRef.current.getStatus()
   );
 
-  // Load dataset for given timeframe
-  const loadDatasetForTimeframe = useCallback(async (tf: Timeframe) => {
+  // Subscribe to Auth changes
+  useEffect(() => {
+    const unsub = AuthService.getInstance().subscribe((user) => {
+      setCurrentUser(user);
+    });
+    return () => unsub();
+  }, []);
+
+  // Load dataset for given symbol and timeframe via DataLakeService
+  const loadDataset = useCallback(async (sym: string, tf: Timeframe) => {
     setIsLoading(true);
     setIsPlaying(false);
     if (playTimerRef.current) clearInterval(playTimerRef.current);
 
     try {
-      const response = await fetch(`/data/XAUUSD_${tf}.csv`);
-      if (!response.ok) {
-        throw new Error(`Failed to load dataset: ${response.statusText}`);
-      }
-      const csvText = await response.text();
-      const bars = parseCandleCsv(csvText);
+      const bars = await DataLakeService.getInstance().loadCandles(sym, tf);
 
       replayEngineRef.current.loadDataset(bars, 60); // 60 initial bars
       const initialVisible = replayEngineRef.current.getVisibleBars();
@@ -84,10 +122,31 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Initial load
+  // Symbol or Timeframe change
   useEffect(() => {
-    loadDatasetForTimeframe(timeframe);
-  }, [timeframe, loadDatasetForTimeframe]);
+    const spec = getAssetSpec(currentSymbol);
+    setSpreadPips(spec.defaultSpread);
+    tradingEngineRef.current.reset(propFirmState.initialBalance, spec.defaultSpread, currentSymbol);
+    loadDataset(currentSymbol, timeframe);
+  }, [currentSymbol, timeframe, loadDataset, propFirmState.initialBalance]);
+
+  // Check URL query for share link e.g. ?share=slug
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const shareParam = params.get('share');
+    if (shareParam) {
+      const sess = CloudSessionService.getInstance().getSessionById(shareParam);
+      if (sess) {
+        setIsReadOnlySession(true);
+        setSharedSessionTitle(sess.title);
+        setCurrentSymbol(sess.symbol);
+        setTimeframe(sess.timeframe);
+        setAccountState(sess.accountState);
+        setPropFirmState(sess.propFirmState);
+      }
+    }
+  }, []);
 
   // Handle single Step Forward (60 FPS Performance Optimized)
   const handleStepForward = useCallback(() => {
@@ -103,9 +162,6 @@ export const App: React.FC = () => {
     // Process SL/TP triggers on new candle
     trader.processBarTriggers(nextBar);
 
-    // CRITICAL OPTIMIZATION: Do not call setVisibleBars(...) here!
-    // Updating only currentBar triggers O(1) incremental series.update(nextBar)
-    // in TradingChart, eliminating setData() overhead and locking 60 FPS.
     setCurrentBar(nextBar);
     setCursorIndex(replay.getCurrentCursor());
     const acc = trader.getState();
@@ -185,7 +241,7 @@ export const App: React.FC = () => {
     [currentBar]
   );
 
-  // Place manual trade with configurable spread
+  // Place manual trade
   const handlePlaceOrder = useCallback(
     (params: {
       type: OrderType;
@@ -195,7 +251,7 @@ export const App: React.FC = () => {
       spread?: number;
       setupTag?: string;
     }) => {
-      if (!currentBar) return;
+      if (!currentBar || isReadOnlySession) return;
 
       tradingEngineRef.current.openMarketOrder({
         type: params.type,
@@ -213,47 +269,51 @@ export const App: React.FC = () => {
       setAccountState(acc);
       setPropFirmState(propFirmEngineRef.current.updateEquity(acc.equity, acc.balance, currentBar.time));
     },
-    [currentBar, cursorIndex, spreadPips]
+    [currentBar, cursorIndex, spreadPips, isReadOnlySession]
   );
 
   // Close position manually
   const handleClosePosition = useCallback(
     (id: string) => {
-      if (!currentBar) return;
+      if (!currentBar || isReadOnlySession) return;
       tradingEngineRef.current.closePosition(id, currentBar.close, currentBar.time, 'MANUAL');
       const acc = tradingEngineRef.current.getState();
       setAccountState(acc);
       setPropFirmState(propFirmEngineRef.current.updateEquity(acc.equity, acc.balance, currentBar.time));
     },
-    [currentBar]
+    [currentBar, isReadOnlySession]
   );
 
-  // Move position SL to Break-Even (Entry Price)
-  const handleMoveToBreakEven = useCallback((id: string) => {
-    tradingEngineRef.current.moveToBreakEven(id);
-    const acc = tradingEngineRef.current.getState();
-    setAccountState(acc);
-    if (currentBar) {
-      setPropFirmState(propFirmEngineRef.current.updateEquity(acc.equity, acc.balance, currentBar.time));
-    }
-  }, [currentBar]);
+  // Move position SL to Break-Even
+  const handleMoveToBreakEven = useCallback(
+    (id: string) => {
+      if (isReadOnlySession) return;
+      tradingEngineRef.current.moveToBreakEven(id);
+      const acc = tradingEngineRef.current.getState();
+      setAccountState(acc);
+      if (currentBar) {
+        setPropFirmState(propFirmEngineRef.current.updateEquity(acc.equity, acc.balance, currentBar.time));
+      }
+    },
+    [currentBar, isReadOnlySession]
+  );
 
-  // Partially close position (e.g. 50%)
+  // Partially close position
   const handlePartialClose = useCallback(
     (id: string, ratio: number = 0.5) => {
-      if (!currentBar) return;
+      if (!currentBar || isReadOnlySession) return;
       tradingEngineRef.current.partialClosePosition(id, ratio, currentBar.close, currentBar.time);
       const acc = tradingEngineRef.current.getState();
       setAccountState(acc);
       setPropFirmState(propFirmEngineRef.current.updateEquity(acc.equity, acc.balance, currentBar.time));
     },
-    [currentBar]
+    [currentBar, isReadOnlySession]
   );
 
   // Select Prop Firm Challenge Account Size
   const handleSelectAccountSize = useCallback(
     (size: number) => {
-      tradingEngineRef.current.reset(size, spreadPips);
+      tradingEngineRef.current.reset(size, spreadPips, currentSymbol);
       propFirmEngineRef.current.reset(size);
       if (currentBar) {
         tradingEngineRef.current.updateMarketPrice(currentBar.close);
@@ -266,7 +326,7 @@ export const App: React.FC = () => {
         setPropFirmState(propFirmEngineRef.current.getStatus());
       }
     },
-    [currentBar, spreadPips]
+    [currentBar, spreadPips, currentSymbol]
   );
 
   const handleResetChallenge = useCallback(() => {
@@ -275,17 +335,27 @@ export const App: React.FC = () => {
 
   // Reset Session
   const handleResetSession = useCallback(() => {
-    if (window.confirm('ต้องการรีเซ็ตยอดเงินและประวัติการเทรดทั้งหมดหรือไม่?')) {
+    if (window.confirm('Reset current balance and trade history?')) {
       handleSelectAccountSize(propFirmState.initialBalance);
+      setIsReadOnlySession(false);
     }
   }, [handleSelectAccountSize, propFirmState.initialBalance]);
+
+  // Load past Cloud Session into Terminal
+  const handleLoadCloudSession = useCallback((sess: CloudSessionRecord) => {
+    setCurrentSymbol(sess.symbol);
+    setTimeframe(sess.timeframe);
+    setAccountState(sess.accountState);
+    setPropFirmState(sess.propFirmState);
+    setIsReadOnlySession(false);
+  }, []);
 
   // Custom CSV Upload
   const handleCustomCsvUpload = useCallback((csvText: string, filename: string) => {
     try {
       const bars = parseCandleCsv(csvText);
       if (bars.length === 0) {
-        alert('ไม่พบข้อมูลแท่งเทียนที่ถูกต้องในไฟล์ CSV');
+        alert('No valid candle bars detected in CSV');
         return;
       }
       setIsPlaying(false);
@@ -302,7 +372,7 @@ export const App: React.FC = () => {
         tradingEngineRef.current.updateMarketPrice(initialBar.close);
         setAccountState(tradingEngineRef.current.getState());
       }
-      alert(`โหลดข้อมูล ${filename} สำเร็จ (${bars.length.toLocaleString()} แท่งเทียน)`);
+      alert(`Loaded ${filename} successfully (${bars.length.toLocaleString()} bars)`);
     } catch (err) {
       alert(`Error parsing CSV: ${err}`);
     }
@@ -311,15 +381,11 @@ export const App: React.FC = () => {
   // Keyboard Shortcuts Hook
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in inputs
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) {
         return;
       }
 
-      if (e.code === 'Space') {
-        e.preventDefault();
-        handleStepForward();
-      } else if (e.code === 'ArrowRight') {
+      if (e.code === 'Space' || e.code === 'ArrowRight') {
         e.preventDefault();
         handleStepForward();
       } else if (e.key === 'p' || e.key === 'P') {
@@ -350,16 +416,62 @@ export const App: React.FC = () => {
     handlePlaceOrder,
   ]);
 
+  const isPro = AuthService.getInstance().isPro();
+
+  // If Commercial Landing Page is activated
+  if (isLandingActive) {
+    return (
+      <LandingPage
+        onLaunchTerminal={() => setIsLandingActive(false)}
+        onOpenUpgrade={(planId) => {
+          setUpgradePlanInit(planId || 'pro_monthly');
+          setIsUpgradeModalOpen(true);
+        }}
+      />
+    );
+  }
+
   return (
-    <div className="flex flex-col w-screen h-screen bg-tv-bg text-tv-text overflow-hidden">
-      {/* Top Navigation */}
+    <div className="flex flex-col w-screen h-screen bg-tv-bg text-tv-text overflow-hidden select-none">
+      {/* Read-Only Replay Banner if in shared session mode */}
+      {isReadOnlySession && (
+        <div className="h-8 bg-amber-500/20 border-b border-amber-500/40 px-4 flex items-center justify-between text-xs font-semibold text-amber-300 z-40">
+          <div className="flex items-center gap-2">
+            <Eye size={14} />
+            <span>Viewing Shared Replay Session: <strong>{sharedSessionTitle}</strong> (Read-Only Mode)</span>
+          </div>
+          <button
+            onClick={() => setIsReadOnlySession(false)}
+            className="flex items-center gap-1 hover:text-white transition-colors"
+          >
+            <LogOut size={13} />
+            <span>Exit Inspector</span>
+          </button>
+        </div>
+      )}
+
+      {/* Top Navigation Bar */}
       <TopNavbar
+        currentSymbol={currentSymbol}
+        onSelectSymbol={setCurrentSymbol}
         currentTimeframe={timeframe}
         onSelectTimeframe={setTimeframe}
         onCustomCsvUpload={handleCustomCsvUpload}
         onResetSession={handleResetSession}
         onOpenPerformance={() => setIsPerfModalOpen(true)}
         onOpenHelp={() => setIsHelpModalOpen(true)}
+        onOpenCloudSessions={() => setIsCloudModalOpen(true)}
+        onOpenSocialShare={() => setIsSocialShareModalOpen(true)}
+        onOpenUpgrade={(planId) => {
+          setUpgradePlanInit(planId || 'pro_monthly');
+          setIsUpgradeModalOpen(true);
+        }}
+        onOpenAffiliate={() => setIsAffiliateModalOpen(true)}
+        onOpenFeedback={() => setIsFeedbackModalOpen(true)}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onToggleLanding={() => setIsLandingActive(true)}
+        currentUser={currentUser}
+        isLandingActive={isLandingActive}
         isLoading={isLoading}
       />
 
@@ -367,6 +479,16 @@ export const App: React.FC = () => {
       <div className="flex-1 flex overflow-hidden relative">
         {/* Left / Center Area: Candlestick Chart */}
         <div className="flex-1 relative flex flex-col h-full overflow-hidden">
+          {/* Subtle Free Tier Watermark */}
+          {!isPro && (
+            <ChartWatermark
+              onUpgradeClick={() => {
+                setUpgradePlanInit('day_pass');
+                setIsUpgradeModalOpen(true);
+              }}
+            />
+          )}
+
           {/* Prop Firm Challenge HUD Ribbon (Top Right) */}
           <div className="absolute top-3 right-4 z-20">
             <PropFirmHUD
@@ -428,7 +550,7 @@ export const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Modals */}
+      {/* Modals & Dialogs */}
       <PerformanceModal
         isOpen={isPerfModalOpen}
         onClose={() => setIsPerfModalOpen(false)}
@@ -438,6 +560,48 @@ export const App: React.FC = () => {
       <ShortcutsHelpModal
         isOpen={isHelpModalOpen}
         onClose={() => setIsHelpModalOpen(false)}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        currentUser={currentUser}
+        onUserChanged={(u) => setCurrentUser(u)}
+      />
+
+      <ProUpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        initialPlan={upgradePlanInit}
+        onUpgradeSuccess={() => setCurrentUser(AuthService.getInstance().getCurrentUser())}
+      />
+
+      <CloudSessionsModal
+        isOpen={isCloudModalOpen}
+        onClose={() => setIsCloudModalOpen(false)}
+        currentAccountState={accountState}
+        currentPropFirmState={propFirmState}
+        currentSymbol={currentSymbol}
+        currentTimeframe={timeframe}
+        onLoadSession={handleLoadCloudSession}
+      />
+
+      <SocialShareModal
+        isOpen={isSocialShareModalOpen}
+        onClose={() => setIsSocialShareModalOpen(false)}
+        account={accountState}
+        propFirmState={propFirmState}
+        symbol={currentSymbol}
+      />
+
+      <AffiliateModal
+        isOpen={isAffiliateModalOpen}
+        onClose={() => setIsAffiliateModalOpen(false)}
+      />
+
+      <FeedbackModal
+        isOpen={isFeedbackModalOpen}
+        onClose={() => setIsFeedbackModalOpen(false)}
       />
     </div>
   );
