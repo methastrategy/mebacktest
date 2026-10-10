@@ -15,7 +15,7 @@
 | **M3: Monetization & Billing** | Stripe Subscriptions, PromptPay QR Top-up, Coupons, Webhook Idempotency | 8 | 8 | 100% | ✅ สมบูรณ์ 100% |
 | **M4: Data Lake & Multi-Asset** | Multi-Asset (Forex, Crypto, Indices), IndexedDB Hot Cache, Data Integrity | 6 | 6 | 100% | ✅ สมบูรณ์ 100% |
 | **M5: Launch & Marketing** | Landing Page, Social P&L Card Canvas, 30% Affiliate RevShare, Feedback Widget | 6 | 6 | 100% | ✅ สมบูรณ์ 100% |
-| **QA, Security & Audit** | OWASP Security, Webhook Idempotency, 48 Vitest Tests, tsc Build 0 Errors | 7 | 7 | 100% | ✅ สมบูรณ์ 100% |
+| **QA, Security & Audit** | OWASP Security, Webhook Idempotency, 53 Vitest Tests, tsc Build 0 Errors | 7 | 7 | 100% | ✅ สมบูรณ์ 100% |
 | **รวมทั้งสิ้น (Total)** | **โครงสร้างระบบทั้งหมดของ MeBacktest** | **48** | **48** | **100.0%** | 🚀 **Production Commercial Ready** |
 
 ---
@@ -224,8 +224,8 @@
 - [x] **6.1 Strict TypeScript & Build Verification**
   - `tsc --noEmit` ผ่าน 0 errors
   - `npm run build` คอมไพล์โปรดักชันผ่านฉลุย
-- [x] **6.2 Automated Unit Testing Suite (48/48 Passing)**
-  - ผ่าน 48/48 Vitest Tests ครอบคลุม Logic ทั้งหมด 11 Test Suites
+- [x] **6.2 Automated Unit Testing Suite (53/53 Passing)**
+  - ผ่าน 53/53 Vitest Tests ครอบคลุม Logic ทั้งหมด 11 Test Suites
   - ไฟล์เทสต์:
     - `tests/DataParser.test.ts` (100k M1 parsing)
     - `tests/ReplayEngine.test.ts` (state machine, step, jump)
