@@ -217,4 +217,146 @@ describe('GoldTradingEngine', () => {
     const triggers = spreadEngine.processBarTriggers(bar);
     expect(triggers.some((t) => t.id === sellPos.id && t.status === 'CLOSED_SL')).toBe(true);
   });
+
+  it('rejects moving to break-even when trade is currently in a loss', () => {
+    // BUY position entered at 2400.00
+    const buyPos = engine.openMarketOrder({
+      type: 'BUY',
+      volume: 1.0,
+      price: 2400.0,
+      time: 1700000000,
+      barIndex: 1,
+      stopLoss: 2390.0,
+    });
+
+    // Market drops to 2380.00 (in loss)
+    engine.updateMarketPrice(2380.0);
+    const buyResult = engine.moveToBreakEven(buyPos.id);
+    expect(buyResult).toBeNull();
+    expect(engine.getState().openPositions[0].stopLoss).toBe(2390.0); // SL unchanged
+
+    // SELL position entered at 2400.00
+    const sellPos = engine.openMarketOrder({
+      type: 'SELL',
+      volume: 1.0,
+      price: 2400.0,
+      time: 1700000000,
+      barIndex: 1,
+      stopLoss: 2410.0,
+    });
+
+    // Market rises to 2420.00 (in loss for SELL)
+    engine.updateMarketPrice(2420.0);
+    const sellResult = engine.moveToBreakEven(sellPos.id);
+    expect(sellResult).toBeNull();
+  });
+
+  it('allows moving to break-even for SELL when in profit, and verifies SL fill', () => {
+    // SELL 1.0 lot at 2400.00 with 25 pips spread
+    const spreadEngine = new GoldTradingEngine(10000, 25);
+    const sellPos = spreadEngine.openMarketOrder({
+      type: 'SELL',
+      volume: 1.0,
+      price: 2400.0,
+      time: 1700000000,
+      barIndex: 1,
+    });
+
+    // Market drops to 2390.00 (in profit, Ask is 2390.25 <= 2400.00)
+    spreadEngine.updateMarketPrice(2390.0);
+    const updated = spreadEngine.moveToBreakEven(sellPos.id);
+    expect(updated).not.toBeNull();
+    expect(updated?.stopLoss).toBe(2400.0);
+
+    // Later bar Ask High reaches 2400.00 (Bid high is 2399.75 + 0.25 spread = 2400.00)
+    const bar: CandleBar = {
+      time: 1700000120 as UTCTimestamp,
+      open: 2392.0,
+      high: 2399.8, // Ask high 2400.05 >= 2400.00 SL
+      low: 2391.0,
+      close: 2398.0,
+    };
+
+    const triggers = spreadEngine.processBarTriggers(bar);
+    expect(triggers.length).toBe(1);
+    expect(triggers[0].status).toBe('CLOSED_SL');
+    expect(triggers[0].realizedPnL).toBeCloseTo(0.0, 2); // Exactly break-even $0 PnL
+    expect(spreadEngine.getState().balance).toBeCloseTo(10000.0, 2);
+  });
+
+  it('rejects partial close on 0.01 lot positions and invalid ratios', () => {
+    const pos = engine.openMarketOrder({
+      type: 'BUY',
+      volume: 0.01,
+      price: 2400.0,
+      time: 1700000000,
+      barIndex: 1,
+    });
+
+    // Partial close on 0.01 lot should be rejected
+    expect(engine.partialClosePosition(pos.id, 0.5, 2410.0, 1700000060)).toBeNull();
+    // Invalid ratio should be rejected
+    expect(engine.partialClosePosition(pos.id, 0, 2410.0, 1700000060)).toBeNull();
+    expect(engine.partialClosePosition(pos.id, -0.5, 2410.0, 1700000060)).toBeNull();
+    // Non-existent ID should return null
+    expect(engine.partialClosePosition('missing', 0.5, 2410.0, 1700000060)).toBeNull();
+
+    // But full close (ratio = 1.0) on 0.01 lot should succeed
+    const fullClose = engine.partialClosePosition(pos.id, 1.0, 2410.0, 1700000060);
+    expect(fullClose).not.toBeNull();
+    expect(fullClose?.closedPosition.volume).toBe(0.01);
+    expect(engine.getState().openPositions.length).toBe(0);
+  });
+
+  it('handles partial close for SELL position with spread accurately', () => {
+    // 25 pips spread ($0.25). SELL enters at Bid = 2400.00
+    const spreadEngine = new GoldTradingEngine(10000, 25);
+    const sellPos = spreadEngine.openMarketOrder({
+      type: 'SELL',
+      volume: 1.0,
+      price: 2400.0,
+      time: 1700000000,
+      barIndex: 1,
+    });
+
+    // Partially close 50% when Bid price is 2390.00
+    // BUY to close covers at Ask = 2390.00 + 0.25 = 2390.25
+    // PnL on 0.5 lot = (2400.00 - 2390.25) * 0.5 * 100 = 9.75 * 50 = $487.50
+    const result = spreadEngine.partialClosePosition(sellPos.id, 0.5, 2390.0, 1700000060);
+    expect(result).not.toBeNull();
+    expect(result?.closedPosition.volume).toBe(0.5);
+    expect(result?.closedPosition.exitPrice).toBe(2390.25);
+    expect(result?.closedPosition.realizedPnL).toBeCloseTo(487.5, 2);
+    expect(result?.remainingPosition?.volume).toBe(0.5);
+    expect(spreadEngine.getState().balance).toBeCloseTo(10487.5, 2);
+  });
+
+  it('supports successive partial closes', () => {
+    const pos = engine.openMarketOrder({
+      type: 'BUY',
+      volume: 1.0,
+      price: 2400.0,
+      time: 1700000000,
+      barIndex: 1,
+    });
+
+    // Step 1: 50% of 1.0 = 0.5 lot closed at 2410 (+10 move * 0.5 * 100 = $500)
+    const step1 = engine.partialClosePosition(pos.id, 0.5, 2410.0, 1700000060);
+    expect(step1?.closedPosition.volume).toBe(0.5);
+    expect(step1?.remainingPosition?.volume).toBe(0.5);
+    expect(engine.getState().balance).toBeCloseTo(10500.0, 2);
+
+    // Step 2: 50% of 0.5 = 0.25 lot closed at 2420 (+20 move * 0.25 * 100 = $500)
+    const step2 = engine.partialClosePosition(pos.id, 0.5, 2420.0, 1700000120);
+    expect(step2?.closedPosition.volume).toBe(0.25);
+    expect(step2?.remainingPosition?.volume).toBe(0.25);
+    expect(engine.getState().balance).toBeCloseTo(11000.0, 2);
+
+    // Step 3: Remaining 0.25 closed at 2430 (+30 move * 0.25 * 100 = $750)
+    const step3 = engine.partialClosePosition(pos.id, 1.0, 2430.0, 1700000180);
+    expect(step3?.closedPosition.volume).toBe(0.25);
+    expect(step3?.remainingPosition).toBeNull();
+    expect(engine.getState().balance).toBeCloseTo(11750.0, 2);
+    expect(engine.getState().openPositions.length).toBe(0);
+  });
 });

@@ -172,6 +172,10 @@ export const PerformanceModal: React.FC<PerformanceModalProps> = ({
                               <span className="text-tv-red">Hit SL</span>
                             ) : p.status === 'CLOSED_TP' ? (
                               <span className="text-tv-green">Hit TP</span>
+                            ) : p.closeReason?.startsWith('PARTIAL_') ? (
+                              <span className="text-blue-400 font-semibold">
+                                Partial ({p.closeReason.replace('PARTIAL_', '')})
+                              </span>
                             ) : (
                               <span>Manual Close</span>
                             )}

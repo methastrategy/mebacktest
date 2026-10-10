@@ -196,6 +196,37 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       ema50SeriesRef.current = null;
       ema200SeriesRef.current = null;
     };
+  }, []);
+
+  // Update Blind Mode formatting dynamically without destroying the chart
+  useEffect(() => {
+    if (!chartRef.current) return;
+    chartRef.current.applyOptions({
+      localization: {
+        timeFormatter: (time: number) => {
+          if (isBlindMode) {
+            return 'Blind Test (Date Hidden)';
+          }
+          const d = new Date(time * 1000);
+          return d.toLocaleString('en-GB', {
+            year: 'numeric',
+            month: 'short',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        },
+      },
+      timeScale: {
+        tickMarkFormatter: (time: number) => {
+          if (isBlindMode) {
+            return '';
+          }
+          const d = new Date(time * 1000);
+          return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        },
+      },
+    });
   }, [isBlindMode]);
 
   // Toggle EMA Visibility
@@ -256,7 +287,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     if (autoScroll && chartRef.current) {
       chartRef.current.timeScale().scrollToRealTime();
     }
-  }, [bars, autoScroll]);
+  }, [bars]);
 
   // High-performance 60 FPS incremental update on single step forward
   useEffect(() => {
@@ -284,21 +315,26 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     });
 
     // Incrementally calculate and append EMAs in O(1) time
-    if (lastEma20Ref.current !== null) {
-      const nextEma20 = calculateNextEMA(currentBar.close, lastEma20Ref.current, 20);
-      lastEma20Ref.current = nextEma20;
-      ema20SeriesRef.current?.update({ time: currentBar.time, value: nextEma20 });
-    }
-    if (lastEma50Ref.current !== null) {
-      const nextEma50 = calculateNextEMA(currentBar.close, lastEma50Ref.current, 50);
-      lastEma50Ref.current = nextEma50;
-      ema50SeriesRef.current?.update({ time: currentBar.time, value: nextEma50 });
-    }
-    if (lastEma200Ref.current !== null) {
-      const nextEma200 = calculateNextEMA(currentBar.close, lastEma200Ref.current, 200);
-      lastEma200Ref.current = nextEma200;
-      ema200SeriesRef.current?.update({ time: currentBar.time, value: nextEma200 });
-    }
+    const nextEma20 =
+      lastEma20Ref.current !== null
+        ? calculateNextEMA(currentBar.close, lastEma20Ref.current, 20)
+        : currentBar.close;
+    lastEma20Ref.current = nextEma20;
+    ema20SeriesRef.current?.update({ time: currentBar.time, value: nextEma20 });
+
+    const nextEma50 =
+      lastEma50Ref.current !== null
+        ? calculateNextEMA(currentBar.close, lastEma50Ref.current, 50)
+        : currentBar.close;
+    lastEma50Ref.current = nextEma50;
+    ema50SeriesRef.current?.update({ time: currentBar.time, value: nextEma50 });
+
+    const nextEma200 =
+      lastEma200Ref.current !== null
+        ? calculateNextEMA(currentBar.close, lastEma200Ref.current, 200)
+        : currentBar.close;
+    lastEma200Ref.current = nextEma200;
+    ema200SeriesRef.current?.update({ time: currentBar.time, value: nextEma200 });
 
     lastProcessedTimeRef.current = currentBar.time;
 
@@ -328,13 +364,16 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     // Closed positions markers (show recent 20)
     const recentClosed = closedPositions.slice(-20);
     for (const pos of recentClosed) {
-      markers.push({
-        time: pos.entryTime as UTCTimestamp,
-        position: pos.type === 'BUY' ? 'belowBar' : 'aboveBar',
-        color: pos.type === 'BUY' ? '#089981' : '#f23645',
-        shape: pos.type === 'BUY' ? 'arrowUp' : 'arrowDown',
-        text: `${pos.type} ${pos.volume}L`,
-      });
+      // Do not duplicate entry arrow for partial close split slices
+      if (!pos.id.includes('_part_')) {
+        markers.push({
+          time: pos.entryTime as UTCTimestamp,
+          position: pos.type === 'BUY' ? 'belowBar' : 'aboveBar',
+          color: pos.type === 'BUY' ? '#089981' : '#f23645',
+          shape: pos.type === 'BUY' ? 'arrowUp' : 'arrowDown',
+          text: `${pos.type} ${pos.volume}L`,
+        });
+      }
 
       if (pos.exitTime && pos.exitPrice) {
         const isWin = (pos.realizedPnL || 0) >= 0;
@@ -405,6 +444,18 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       }
     }
   }, [positions]);
+
+  const handleSetRightOffset = (offset: number) => {
+    const clamped = Math.max(0, Math.min(100, Math.round(offset)));
+    setRightOffset(clamped);
+    if (chartRef.current) {
+      chartRef.current.timeScale().applyOptions({
+        rightOffset: clamped,
+        fixRightEdge: false,
+      });
+      chartRef.current.timeScale().scrollToRealTime();
+    }
+  };
 
   return (
     <div className="relative w-full h-full flex flex-col bg-tv-bg">
@@ -478,23 +529,38 @@ export const TradingChart: React.FC<TradingChartProps> = ({
           </button>
         </div>
 
-        {/* Shift / Right Margin Offset Preset Selector */}
-        <div className="bg-tv-surface/90 backdrop-blur border border-tv-border px-2 py-1 rounded-lg flex items-center gap-1 shadow-lg text-xs">
+        {/* Shift / Right Margin Offset Control */}
+        <div className="bg-tv-surface/90 backdrop-blur border border-tv-border px-2 py-1 rounded-lg flex items-center gap-1.5 shadow-lg text-xs">
           <span className="text-[11px] font-semibold text-tv-muted mr-0.5">Shift:</span>
-          {[0, 15, 25, 45].map((offset) => (
-            <button
-              key={offset}
-              onClick={() => setRightOffset(offset)}
-              className={`px-1.5 py-0.5 rounded text-[10px] font-mono transition-all border ${
-                rightOffset === offset
-                  ? 'bg-tv-blue text-white border-tv-blue font-bold shadow-sm'
-                  : 'text-tv-muted border-transparent hover:text-white'
-              }`}
-              title={`Shift right margin by ${offset} bars`}
-            >
-              {offset}b
-            </button>
-          ))}
+          <div className="flex items-center gap-1">
+            {[0, 15, 25, 45].map((offset) => (
+              <button
+                key={offset}
+                onClick={() => handleSetRightOffset(offset)}
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono transition-all border ${
+                  rightOffset === offset
+                    ? 'bg-tv-blue text-white border-tv-blue font-bold shadow-sm'
+                    : 'text-tv-muted border-transparent hover:text-white'
+                }`}
+                title={`Shift right margin by ${offset} bars`}
+              >
+                {offset}b
+              </button>
+            ))}
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="60"
+            step="5"
+            value={rightOffset}
+            onChange={(e) => handleSetRightOffset(parseInt(e.target.value) || 0)}
+            className="w-14 h-1 accent-tv-blue cursor-pointer hidden md:inline-block"
+            title={`Adjust blank space right margin (${rightOffset} bars)`}
+          />
+          <span className="text-[10px] font-mono text-tv-muted min-w-[20px] text-right hidden md:inline-block">
+            {rightOffset}b
+          </span>
         </div>
 
         {/* Auto Scroll Toggle */}

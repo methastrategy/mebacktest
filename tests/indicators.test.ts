@@ -51,4 +51,31 @@ describe('indicators - EMA', () => {
     const nextVal = calculateNextEMA(currentClose, prevEma, kPeriod);
     expect(nextVal).toBe(expected);
   });
+
+  it('matches full batch series with incremental streaming over 100 candles for EMA 20, 50, 200', () => {
+    // Generate 100 candles
+    const bars: CandleBar[] = [];
+    let price = 2400.0;
+    for (let i = 0; i < 100; i++) {
+      price += (i % 2 === 0 ? 1.5 : -1.0) * ((i % 5) + 0.5);
+      bars.push({
+        time: (1700000000 + i * 60) as UTCTimestamp,
+        open: price,
+        high: price + 1,
+        low: price - 1,
+        close: Number(price.toFixed(2)),
+      });
+    }
+
+    for (const period of [20, 50, 200]) {
+      const batchEMA = calculateEMA(bars, period);
+      expect(batchEMA.length).toBe(100);
+
+      let streamingEma = bars[0].close;
+      for (let i = 1; i < bars.length; i++) {
+        streamingEma = calculateNextEMA(bars[i].close, streamingEma, period);
+        expect(streamingEma).toBe(batchEMA[i].value);
+      }
+    }
+  });
 });

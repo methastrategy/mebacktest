@@ -18,19 +18,19 @@ export function calculateEMA(bars: CandleBar[], period: number): IndicatorPoint[
   const k = 2 / (period + 1);
   const result: IndicatorPoint[] = [];
 
-  let prevEma = bars[0].close;
+  let prevEma = Number(bars[0].close.toFixed(3));
   result.push({
     time: bars[0].time,
-    value: Number(prevEma.toFixed(3)),
+    value: prevEma,
   });
 
   for (let i = 1; i < bars.length; i++) {
     const close = bars[i].close;
-    const currentEma = close * k + prevEma * (1 - k);
+    const currentEma = Number((close * k + prevEma * (1 - k)).toFixed(3));
     prevEma = currentEma;
     result.push({
       time: bars[i].time,
-      value: Number(currentEma.toFixed(3)),
+      value: currentEma,
     });
   }
 

@@ -17,20 +17,27 @@ describe('DataParser', () => {
     expect(bars[0].time).toBeLessThan(bars[1].time);
   });
 
-  it('successfully parses M1 dataset', async () => {
+  it('successfully parses the full 100,000 candle M1 dataset', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const m1Path = path.resolve(__dirname, '../public/data/XAUUSD_M1.csv');
     expect(fs.existsSync(m1Path)).toBe(true);
 
-    const fd = fs.openSync(m1Path, 'r');
-    const buffer = Buffer.alloc(1024 * 10); // read first 10 KB
-    fs.readSync(fd, buffer, 0, buffer.length, 0);
-    fs.closeSync(fd);
+    const fullContent = fs.readFileSync(m1Path, 'utf-8');
+    const bars = parseCandleCsv(fullContent);
 
-    const snippet = buffer.toString('utf-8');
-    const bars = parseCandleCsv(snippet);
-    expect(bars.length).toBeGreaterThan(10);
+    expect(bars.length).toBe(100000);
     expect(bars[0].close).toBeGreaterThan(0);
+    expect(bars[bars.length - 1].close).toBeGreaterThan(0);
+
+    // Verify chronological order and sanity of OHLC
+    for (let i = 1; i < 50; i++) {
+      expect(bars[i].time).toBeGreaterThan(bars[i - 1].time);
+      expect(bars[i].high).toBeGreaterThanOrEqual(bars[i].low);
+      expect(bars[i].high).toBeGreaterThanOrEqual(bars[i].open);
+      expect(bars[i].high).toBeGreaterThanOrEqual(bars[i].close);
+      expect(bars[i].low).toBeLessThanOrEqual(bars[i].open);
+      expect(bars[i].low).toBeLessThanOrEqual(bars[i].close);
+    }
   });
 });

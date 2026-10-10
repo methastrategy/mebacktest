@@ -34,6 +34,9 @@ export const PositionList: React.FC<PositionListProps> = ({
           {positions.map((pos) => {
             const isProfit = pos.unrealizedPnL >= 0;
             const isAtBE = pos.stopLoss !== undefined && Math.abs(pos.stopLoss - pos.entryPrice) < 0.001;
+            const canSetBE = isProfit && !isAtBE;
+            const canPartial = pos.volume >= 0.02;
+
             return (
               <div
                 key={pos.id}
@@ -58,11 +61,20 @@ export const PositionList: React.FC<PositionListProps> = ({
                   {/* Actions: BE, Close 50%, Close */}
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => onBreakEven(pos.id)}
-                      title="Move Stop Loss to Break-Even (Entry Price)"
+                      onClick={() => canSetBE && onBreakEven(pos.id)}
+                      disabled={!canSetBE}
+                      title={
+                        isAtBE
+                          ? 'Stop Loss is already at Break-Even'
+                          : !isProfit
+                          ? 'Position must be in profit to set Break-Even'
+                          : 'Move Stop Loss to Break-Even (Entry Price)'
+                      }
                       className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors ${
                         isAtBE
                           ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/40 cursor-default'
+                          : !isProfit
+                          ? 'bg-tv-surface/40 text-tv-muted/40 border-tv-border/40 cursor-not-allowed'
                           : 'bg-tv-surface hover:bg-amber-500/20 text-amber-400 border-amber-500/30'
                       }`}
                     >
@@ -70,9 +82,18 @@ export const PositionList: React.FC<PositionListProps> = ({
                     </button>
 
                     <button
-                      onClick={() => onPartialClose(pos.id, 0.5)}
-                      title="Partially close 50% of volume"
-                      className="px-1.5 py-0.5 bg-blue-900/40 hover:bg-blue-800 text-blue-200 border border-blue-500/30 rounded text-[10px] font-bold transition-colors"
+                      onClick={() => canPartial && onPartialClose(pos.id, 0.5)}
+                      disabled={!canPartial}
+                      title={
+                        !canPartial
+                          ? 'Minimum volume is 0.01 lot - cannot split further'
+                          : 'Partially close 50% of volume'
+                      }
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+                        canPartial
+                          ? 'bg-blue-900/40 hover:bg-blue-800 text-blue-200 border-blue-500/30'
+                          : 'bg-tv-surface/40 text-tv-muted/40 border-tv-border/40 cursor-not-allowed'
+                      }`}
                     >
                       50%
                     </button>

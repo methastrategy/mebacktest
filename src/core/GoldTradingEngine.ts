@@ -87,6 +87,23 @@ export class GoldTradingEngine {
     const pos = this.openPositions.find((p) => p.id === positionId);
     if (!pos) return null;
 
+    const posSpread = pos.spread !== undefined ? pos.spread : this.spread;
+    const spreadOffset = posSpread / 100.0;
+
+    // Determine current valuation price (Bid for BUY, Ask for SELL)
+    const currentValuationPrice =
+      pos.type === 'SELL'
+        ? (this.currentMarketPrice > 0 ? this.currentMarketPrice + spreadOffset : pos.currentPrice)
+        : (this.currentMarketPrice > 0 ? this.currentMarketPrice : pos.currentPrice);
+
+    // Position must be at break-even or in profit; cannot set SL at entry if currently in loss
+    if (pos.type === 'BUY' && currentValuationPrice < pos.entryPrice) {
+      return null;
+    }
+    if (pos.type === 'SELL' && currentValuationPrice > pos.entryPrice) {
+      return null;
+    }
+
     pos.stopLoss = pos.entryPrice;
     return pos;
   }
@@ -107,10 +124,15 @@ export class GoldTradingEngine {
       return closed ? { closedPosition: closed, remainingPosition: null } : null;
     }
 
+    // Minimum lot size in gold trading is 0.01 lot. Cannot partially close a 0.01 lot position.
+    if (pos.volume < 0.02) {
+      return null;
+    }
+
     const closedVolume = Math.round(pos.volume * ratio * 100) / 100;
     const remainingVolume = Math.round((pos.volume - closedVolume) * 100) / 100;
 
-    if (closedVolume <= 0) return null;
+    if (closedVolume <= 0 || remainingVolume <= 0) return null;
 
     const posSpread = pos.spread !== undefined ? pos.spread : this.spread;
     const spreadOffset = posSpread / 100.0;
