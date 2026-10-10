@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   createChart,
   IChartApi,
@@ -10,6 +10,7 @@ import {
 } from 'lightweight-charts';
 import { CandleBar } from '../types/candle';
 import { Position } from '../types/trade';
+import { calculateEMA, calculateNextEMA } from '../core/indicators';
 
 interface TradingChartProps {
   bars: CandleBar[];
@@ -31,7 +32,25 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const ema20SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const ema50SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const ema200SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const priceLinesRef = useRef<IPriceLine[]>([]);
+
+  // Incremental state tracking for O(1) step updates
+  const lastEma20Ref = useRef<number | null>(null);
+  const lastEma50Ref = useRef<number | null>(null);
+  const lastEma200Ref = useRef<number | null>(null);
+  const lastProcessedTimeRef = useRef<number | null>(null);
+
+  // Indicators toggle state
+  const [showEma20, setShowEma20] = useState<boolean>(true);
+  const [showEma50, setShowEma50] = useState<boolean>(true);
+  const [showEma200, setShowEma200] = useState<boolean>(true);
+
+  // Shift (rightOffset margin) & Auto-Scroll state
+  const [rightOffset, setRightOffset] = useState<number>(20);
+  const [autoScroll, setAutoScroll] = useState<boolean>(true);
 
   // Initialize chart
   useEffect(() => {
@@ -74,6 +93,8 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         borderColor: '#2a2e39',
         timeVisible: true,
         secondsVisible: false,
+        rightOffset: 20,
+        fixRightEdge: false,
         tickMarkFormatter: (time: number) => {
           if (isBlindMode) {
             return '';
@@ -107,8 +128,39 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       wickDownColor: '#f23645',
     });
 
+    // EMA series (EMA 20 Sky Blue, EMA 50 Orange, EMA 200 Purple)
+    const ema20 = chart.addLineSeries({
+      color: '#38bdf8',
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: true,
+      title: 'EMA 20',
+      visible: showEma20,
+    });
+
+    const ema50 = chart.addLineSeries({
+      color: '#f97316',
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: true,
+      title: 'EMA 50',
+      visible: showEma50,
+    });
+
+    const ema200 = chart.addLineSeries({
+      color: '#c084fc',
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: true,
+      title: 'EMA 200',
+      visible: showEma200,
+    });
+
     chartRef.current = chart;
     seriesRef.current = series;
+    ema20SeriesRef.current = ema20;
+    ema50SeriesRef.current = ema50;
+    ema200SeriesRef.current = ema200;
 
     // Click handler on chart
     if (onPriceClick) {
@@ -140,10 +192,39 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
+      ema20SeriesRef.current = null;
+      ema50SeriesRef.current = null;
+      ema200SeriesRef.current = null;
     };
   }, [isBlindMode]);
 
-  // Set chart data when bars change
+  // Toggle EMA Visibility
+  useEffect(() => {
+    ema20SeriesRef.current?.applyOptions({ visible: showEma20 });
+  }, [showEma20]);
+
+  useEffect(() => {
+    ema50SeriesRef.current?.applyOptions({ visible: showEma50 });
+  }, [showEma50]);
+
+  useEffect(() => {
+    ema200SeriesRef.current?.applyOptions({ visible: showEma200 });
+  }, [showEma200]);
+
+  // Apply right offset (shift) and scroll option
+  useEffect(() => {
+    if (chartRef.current) {
+      chartRef.current.timeScale().applyOptions({
+        rightOffset,
+        fixRightEdge: false,
+      });
+      if (autoScroll) {
+        chartRef.current.timeScale().scrollToRealTime();
+      }
+    }
+  }, [rightOffset, autoScroll]);
+
+  // Set chart data when bars change (initial dataset load, random scenario, date jump)
   useEffect(() => {
     if (!seriesRef.current || bars.length === 0) return;
 
@@ -157,15 +238,43 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
     seriesRef.current.setData(formattedBars);
 
+    // Calculate EMAs for visible bars
+    const ema20Data = calculateEMA(bars, 20);
+    const ema50Data = calculateEMA(bars, 50);
+    const ema200Data = calculateEMA(bars, 200);
+
+    ema20SeriesRef.current?.setData(ema20Data);
+    ema50SeriesRef.current?.setData(ema50Data);
+    ema200SeriesRef.current?.setData(ema200Data);
+
+    lastEma20Ref.current = ema20Data.length > 0 ? ema20Data[ema20Data.length - 1].value : null;
+    lastEma50Ref.current = ema50Data.length > 0 ? ema50Data[ema50Data.length - 1].value : null;
+    lastEma200Ref.current = ema200Data.length > 0 ? ema200Data[ema200Data.length - 1].value : null;
+    lastProcessedTimeRef.current = bars[bars.length - 1]?.time ?? null;
+
     // Auto scroll to latest bar
-    if (chartRef.current) {
+    if (autoScroll && chartRef.current) {
       chartRef.current.timeScale().scrollToRealTime();
     }
-  }, [bars]);
+  }, [bars, autoScroll]);
 
-  // Update current bar if single update
+  // High-performance 60 FPS incremental update on single step forward
   useEffect(() => {
     if (!seriesRef.current || !currentBar) return;
+
+    // If bar time matches last processed, update current bar in place
+    if (lastProcessedTimeRef.current !== null && currentBar.time <= lastProcessedTimeRef.current) {
+      seriesRef.current.update({
+        time: currentBar.time,
+        open: currentBar.open,
+        high: currentBar.high,
+        low: currentBar.low,
+        close: currentBar.close,
+      });
+      return;
+    }
+
+    // New candle step forward: append bar via series.update() in O(1)
     seriesRef.current.update({
       time: currentBar.time,
       open: currentBar.open,
@@ -173,7 +282,31 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       low: currentBar.low,
       close: currentBar.close,
     });
-  }, [currentBar]);
+
+    // Incrementally calculate and append EMAs in O(1) time
+    if (lastEma20Ref.current !== null) {
+      const nextEma20 = calculateNextEMA(currentBar.close, lastEma20Ref.current, 20);
+      lastEma20Ref.current = nextEma20;
+      ema20SeriesRef.current?.update({ time: currentBar.time, value: nextEma20 });
+    }
+    if (lastEma50Ref.current !== null) {
+      const nextEma50 = calculateNextEMA(currentBar.close, lastEma50Ref.current, 50);
+      lastEma50Ref.current = nextEma50;
+      ema50SeriesRef.current?.update({ time: currentBar.time, value: nextEma50 });
+    }
+    if (lastEma200Ref.current !== null) {
+      const nextEma200 = calculateNextEMA(currentBar.close, lastEma200Ref.current, 200);
+      lastEma200Ref.current = nextEma200;
+      ema200SeriesRef.current?.update({ time: currentBar.time, value: nextEma200 });
+    }
+
+    lastProcessedTimeRef.current = currentBar.time;
+
+    // Auto scroll if enabled
+    if (autoScroll && chartRef.current) {
+      chartRef.current.timeScale().scrollToRealTime();
+    }
+  }, [currentBar, autoScroll]);
 
   // Render Markers (Buy / Sell entry / exit markers on chart)
   useEffect(() => {
@@ -246,13 +379,14 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
       // Stop Loss Line
       if (pos.stopLoss) {
+        const isBE = Math.abs(pos.stopLoss - pos.entryPrice) < 0.001;
         const slLine = seriesRef.current.createPriceLine({
           price: pos.stopLoss,
-          color: '#f23645',
+          color: isBE ? '#eab308' : '#f23645',
           lineWidth: 1,
           lineStyle: LineStyle.Dashed,
           axisLabelVisible: true,
-          title: `SL #${pos.id.slice(-4)}`,
+          title: isBE ? `BE #${pos.id.slice(-4)}` : `SL #${pos.id.slice(-4)}`,
         });
         priceLinesRef.current.push(slLine);
       }
@@ -302,6 +436,86 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             BLIND MODE (Date Hidden)
           </div>
         )}
+      </div>
+
+      {/* Floating Chart Controls on Top-Right: Indicators, Shift, Auto-Scroll */}
+      <div className="absolute top-3 right-4 flex items-center gap-2 z-10 select-none">
+        {/* Indicators Control Group */}
+        <div className="bg-tv-surface/90 backdrop-blur border border-tv-border px-2 py-1 rounded-lg flex items-center gap-1.5 shadow-lg text-xs">
+          <span className="text-[11px] font-semibold text-tv-muted mr-0.5">EMA:</span>
+          <button
+            onClick={() => setShowEma20((prev) => !prev)}
+            className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-all border ${
+              showEma20
+                ? 'bg-sky-500/20 text-sky-400 border-sky-400/40 shadow-sm'
+                : 'text-tv-muted border-transparent hover:text-white'
+            }`}
+            title="Toggle EMA 20 (Cyan)"
+          >
+            20
+          </button>
+          <button
+            onClick={() => setShowEma50((prev) => !prev)}
+            className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-all border ${
+              showEma50
+                ? 'bg-orange-500/20 text-orange-400 border-orange-400/40 shadow-sm'
+                : 'text-tv-muted border-transparent hover:text-white'
+            }`}
+            title="Toggle EMA 50 (Orange)"
+          >
+            50
+          </button>
+          <button
+            onClick={() => setShowEma200((prev) => !prev)}
+            className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-all border ${
+              showEma200
+                ? 'bg-purple-500/20 text-purple-400 border-purple-400/40 shadow-sm'
+                : 'text-tv-muted border-transparent hover:text-white'
+            }`}
+            title="Toggle EMA 200 (Purple)"
+          >
+            200
+          </button>
+        </div>
+
+        {/* Shift / Right Margin Offset Preset Selector */}
+        <div className="bg-tv-surface/90 backdrop-blur border border-tv-border px-2 py-1 rounded-lg flex items-center gap-1 shadow-lg text-xs">
+          <span className="text-[11px] font-semibold text-tv-muted mr-0.5">Shift:</span>
+          {[0, 15, 25, 45].map((offset) => (
+            <button
+              key={offset}
+              onClick={() => setRightOffset(offset)}
+              className={`px-1.5 py-0.5 rounded text-[10px] font-mono transition-all border ${
+                rightOffset === offset
+                  ? 'bg-tv-blue text-white border-tv-blue font-bold shadow-sm'
+                  : 'text-tv-muted border-transparent hover:text-white'
+              }`}
+              title={`Shift right margin by ${offset} bars`}
+            >
+              {offset}b
+            </button>
+          ))}
+        </div>
+
+        {/* Auto Scroll Toggle */}
+        <button
+          onClick={() => {
+            const next = !autoScroll;
+            setAutoScroll(next);
+            if (next && chartRef.current) {
+              chartRef.current.timeScale().scrollToRealTime();
+            }
+          }}
+          className={`px-2.5 py-1 rounded-lg text-xs font-semibold border backdrop-blur shadow-lg transition-all flex items-center gap-1.5 ${
+            autoScroll
+              ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/40'
+              : 'bg-tv-surface/90 text-tv-muted border-tv-border hover:text-white'
+          }`}
+          title="Auto scroll to latest candle on replay step"
+        >
+          <span className={`w-1.5 h-1.5 rounded-full ${autoScroll ? 'bg-emerald-400 animate-pulse' : 'bg-tv-muted'}`} />
+          Auto-Scroll
+        </button>
       </div>
     </div>
   );

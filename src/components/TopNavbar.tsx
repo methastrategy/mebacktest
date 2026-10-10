@@ -12,7 +12,7 @@ interface TopNavbarProps {
   isLoading: boolean;
 }
 
-const TIMEFRAMES: Timeframe[] = ['M5', 'M15', 'H1', 'D1'];
+const TIMEFRAMES: Timeframe[] = ['M1', 'M5', 'M15', 'H1', 'D1'];
 
 export const TopNavbar: React.FC<TopNavbarProps> = ({
   currentTimeframe,

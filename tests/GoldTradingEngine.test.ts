@@ -110,4 +110,111 @@ describe('GoldTradingEngine', () => {
     const state = engine.getState();
     expect(state.balance).toBeCloseTo(10300.0, 2);
   });
+
+  it('moves stop loss to break-even (entry price)', () => {
+    const pos = engine.openMarketOrder({
+      type: 'BUY',
+      volume: 1.0,
+      price: 2400.0,
+      time: 1700000000,
+      barIndex: 1,
+      stopLoss: 2390.0,
+    });
+
+    expect(pos.stopLoss).toBe(2390.0);
+
+    const updated = engine.moveToBreakEven(pos.id);
+    expect(updated).not.toBeNull();
+    expect(updated?.stopLoss).toBe(2400.0);
+    expect(engine.getState().openPositions[0].stopLoss).toBe(2400.0);
+
+    // Non-existent id returns null
+    expect(engine.moveToBreakEven('invalid_id')).toBeNull();
+  });
+
+  it('partially closes 50% of position and leaves remainder open', () => {
+    const pos = engine.openMarketOrder({
+      type: 'BUY',
+      volume: 1.0,
+      price: 2400.0,
+      time: 1700000000,
+      barIndex: 1,
+    });
+
+    // Close 50% at 2410.0 (+10.0 move on 0.5 lot = $500 realized profit)
+    const result = engine.partialClosePosition(pos.id, 0.5, 2410.0, 1700000060);
+    expect(result).not.toBeNull();
+    expect(result?.closedPosition.volume).toBe(0.5);
+    expect(result?.closedPosition.realizedPnL).toBeCloseTo(500.0, 2);
+    expect(result?.closedPosition.status).toBe('CLOSED_MANUAL');
+
+    // Balance updated with closed portion
+    let state = engine.getState();
+    expect(state.balance).toBeCloseTo(10500.0, 2);
+
+    // Remaining position has 0.5 lot open
+    expect(result?.remainingPosition?.volume).toBe(0.5);
+    expect(state.openPositions.length).toBe(1);
+    expect(state.openPositions[0].volume).toBe(0.5);
+    expect(state.closedPositions.length).toBe(1);
+
+    // Close 100% of remaining position at 2420.0 (+20 move on 0.5 lot = $1000 profit)
+    const fullResult = engine.partialClosePosition(pos.id, 1.0, 2420.0, 1700000120);
+    expect(fullResult?.remainingPosition).toBeNull();
+    expect(fullResult?.closedPosition.volume).toBe(0.5);
+    expect(fullResult?.closedPosition.realizedPnL).toBeCloseTo(1000.0, 2);
+
+    state = engine.getState();
+    expect(state.balance).toBeCloseTo(11500.0, 2);
+    expect(state.openPositions.length).toBe(0);
+    expect(state.closedPositions.length).toBe(2);
+  });
+
+  it('accurately simulates spread for BUY and SELL orders', () => {
+    // Engine with 25 pips spread ($0.25)
+    const spreadEngine = new GoldTradingEngine(10000, 25);
+    expect(spreadEngine.getSpread()).toBe(25);
+
+    // BUY order at price 2400.00 -> enters at Ask = 2400.25
+    const buyPos = spreadEngine.openMarketOrder({
+      type: 'BUY',
+      volume: 1.0,
+      price: 2400.0,
+      time: 1700000000,
+      barIndex: 1,
+    });
+    expect(buyPos.entryPrice).toBe(2400.25);
+
+    // At current market price 2400.00 (Bid), unrealized PnL is -$25 (spread cost)
+    spreadEngine.updateMarketPrice(2400.0);
+    expect(spreadEngine.getState().openPositions[0].unrealizedPnL).toBeCloseTo(-25.0, 2);
+
+    // SELL order at price 2400.00 -> enters at Bid = 2400.00
+    const sellPos = spreadEngine.openMarketOrder({
+      type: 'SELL',
+      volume: 1.0,
+      price: 2400.0,
+      time: 1700000000,
+      barIndex: 1,
+      stopLoss: 2405.0,
+    });
+    expect(sellPos.entryPrice).toBe(2400.0);
+
+    // At market price 2400.00, SELL current Ask is 2400.25, unrealized PnL is -$25
+    spreadEngine.updateMarketPrice(2400.0);
+    const sellInState = spreadEngine.getState().openPositions.find((p) => p.id === sellPos.id);
+    expect(sellInState?.unrealizedPnL).toBeCloseTo(-25.0, 2);
+
+    // SELL SL hit when bar Ask High (Bid High + 0.25) reaches SL 2405.00
+    // If Bid high is 2404.80, Ask high is 2405.05 >= 2405.00 -> SL triggers!
+    const bar: CandleBar = {
+      time: 1700000060 as UTCTimestamp,
+      open: 2401.0,
+      high: 2404.8, // Bid high 2404.80 + 0.25 spread = 2405.05 Ask high -> hits 2405 SL
+      low: 2400.5,
+      close: 2403.0,
+    };
+    const triggers = spreadEngine.processBarTriggers(bar);
+    expect(triggers.some((t) => t.id === sellPos.id && t.status === 'CLOSED_SL')).toBe(true);
+  });
 });

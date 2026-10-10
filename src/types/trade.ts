@@ -19,6 +19,7 @@ export interface Position {
   exitTime?: number;
   realizedPnL?: number;
   closeReason?: string;
+  spread?: number;
 }
 
 export interface AccountState {

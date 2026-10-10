@@ -5,11 +5,15 @@ import { Position } from '../types/trade';
 interface PositionListProps {
   positions: Position[];
   onClosePosition: (id: string) => void;
+  onBreakEven: (id: string) => void;
+  onPartialClose: (id: string, ratio?: number) => void;
 }
 
 export const PositionList: React.FC<PositionListProps> = ({
   positions,
   onClosePosition,
+  onBreakEven,
+  onPartialClose,
 }) => {
   return (
     <div className="bg-tv-surface border border-tv-border rounded-xl p-3 flex flex-col gap-2.5 shadow-xl select-none flex-1 overflow-hidden min-h-[160px]">
@@ -29,12 +33,13 @@ export const PositionList: React.FC<PositionListProps> = ({
         <div className="flex-1 overflow-y-auto space-y-2 pr-1">
           {positions.map((pos) => {
             const isProfit = pos.unrealizedPnL >= 0;
+            const isAtBE = pos.stopLoss !== undefined && Math.abs(pos.stopLoss - pos.entryPrice) < 0.001;
             return (
               <div
                 key={pos.id}
                 className="bg-tv-bg border border-tv-border rounded-lg p-2.5 flex flex-col gap-1.5 transition-all hover:border-tv-muted"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-1">
                   <div className="flex items-center gap-1.5">
                     <span
                       className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
@@ -50,15 +55,37 @@ export const PositionList: React.FC<PositionListProps> = ({
                     </span>
                   </div>
 
-                  {/* Close Button */}
-                  <button
-                    onClick={() => onClosePosition(pos.id)}
-                    title="Close Position Now"
-                    className="flex items-center gap-1 px-2 py-0.5 bg-red-900/40 hover:bg-red-800 text-red-200 border border-red-500/30 rounded text-[11px] font-medium transition-colors"
-                  >
-                    <X size={12} />
-                    <span>Close</span>
-                  </button>
+                  {/* Actions: BE, Close 50%, Close */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => onBreakEven(pos.id)}
+                      title="Move Stop Loss to Break-Even (Entry Price)"
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+                        isAtBE
+                          ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/40 cursor-default'
+                          : 'bg-tv-surface hover:bg-amber-500/20 text-amber-400 border-amber-500/30'
+                      }`}
+                    >
+                      {isAtBE ? 'BE ✓' : 'BE'}
+                    </button>
+
+                    <button
+                      onClick={() => onPartialClose(pos.id, 0.5)}
+                      title="Partially close 50% of volume"
+                      className="px-1.5 py-0.5 bg-blue-900/40 hover:bg-blue-800 text-blue-200 border border-blue-500/30 rounded text-[10px] font-bold transition-colors"
+                    >
+                      50%
+                    </button>
+
+                    <button
+                      onClick={() => onClosePosition(pos.id)}
+                      title="Close Entire Position Now"
+                      className="flex items-center gap-0.5 px-1.5 py-0.5 bg-red-900/40 hover:bg-red-800 text-red-200 border border-red-500/30 rounded text-[10px] font-medium transition-colors"
+                    >
+                      <X size={11} />
+                      <span>Close</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between text-xs pt-1 border-t border-tv-border/50">

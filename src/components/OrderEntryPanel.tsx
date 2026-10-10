@@ -9,21 +9,31 @@ interface OrderEntryPanelProps {
     volume: number;
     stopLoss?: number;
     takeProfit?: number;
+    spread?: number;
   }) => void;
   clickedPrice?: number;
+  spreadPips?: number;
+  onChangeSpread?: (pips: number) => void;
 }
 
 const LOT_PRESETS = [0.01, 0.05, 0.1, 0.25, 0.5, 1.0];
+const SPREAD_PRESETS = [0, 15, 25, 40];
 
 export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
   currentPrice,
   onPlaceOrder,
   clickedPrice,
+  spreadPips = 25,
+  onChangeSpread,
 }) => {
   const [volume, setVolume] = useState<number>(0.1);
   const [stopLoss, setStopLoss] = useState<string>('');
   const [takeProfit, setTakeProfit] = useState<string>('');
   const [targetType, setTargetType] = useState<OrderType>('BUY');
+
+  const spreadOffset = spreadPips / 100.0;
+  const askPrice = currentPrice > 0 ? currentPrice + spreadOffset : 0;
+  const bidPrice = currentPrice;
 
   // If user clicked on chart price, autofill SL or TP depending on relative level
   useEffect(() => {
@@ -98,6 +108,7 @@ export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
       volume,
       stopLoss: parsedSL,
       takeProfit: parsedTP,
+      spread: spreadPips,
     });
   };
 
@@ -108,18 +119,62 @@ export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
       volume,
       stopLoss: parsedSL,
       takeProfit: parsedTP,
+      spread: spreadPips,
     });
   };
 
   return (
-    <div className="bg-tv-surface border border-tv-border rounded-xl p-4 flex flex-col gap-4 shadow-xl">
+    <div className="bg-tv-surface border border-tv-border rounded-xl p-4 flex flex-col gap-3.5 shadow-xl">
       <div className="flex items-center justify-between border-b border-tv-border pb-2.5">
         <h3 className="font-semibold text-sm flex items-center gap-2 text-white">
           <DollarSign size={16} className="text-amber-400" />
           <span>New Order (Manual Trade)</span>
         </h3>
-        <div className="text-xs font-mono font-bold text-amber-300">
-          {currentPrice ? currentPrice.toFixed(2) : '---'}
+        <div className="text-right">
+          <div className="text-xs font-mono font-bold text-amber-300">
+            {currentPrice ? currentPrice.toFixed(2) : '---'}
+          </div>
+          {spreadPips > 0 && currentPrice > 0 && (
+            <div className="text-[10px] font-mono text-tv-muted">
+              Ask: <span className="text-tv-text">{askPrice.toFixed(2)}</span> ({spreadPips}p)
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Spread Simulation Control */}
+      <div className="flex flex-col gap-1 bg-tv-bg/60 border border-tv-border/80 rounded-lg p-2">
+        <div className="flex justify-between items-center text-[11px]">
+          <span className="text-tv-muted font-medium">Spread Simulation:</span>
+          <span className="text-amber-400 font-mono font-bold">
+            {spreadPips} pips (${(spreadPips / 100).toFixed(2)})
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <input
+            type="number"
+            min="0"
+            max="200"
+            step="1"
+            value={spreadPips}
+            onChange={(e) => onChangeSpread && onChangeSpread(Math.max(0, parseInt(e.target.value) || 0))}
+            className="w-16 bg-tv-bg border border-tv-border focus:border-amber-400 rounded px-1.5 py-0.5 text-xs font-mono font-bold text-white text-center focus:outline-none"
+          />
+          <div className="flex items-center gap-1 flex-1">
+            {SPREAD_PRESETS.map((p) => (
+              <button
+                key={p}
+                onClick={() => onChangeSpread && onChangeSpread(p)}
+                className={`flex-1 py-0.5 rounded text-[10px] font-mono transition-colors border ${
+                  spreadPips === p
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 font-bold'
+                    : 'bg-tv-bg border-tv-border text-tv-muted hover:text-white'
+                }`}
+              >
+                {p}p
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -278,19 +333,33 @@ export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
         <button
           onClick={handleBuy}
           disabled={!currentPrice}
-          className="flex items-center justify-center gap-2 py-3 bg-tv-green hover:bg-tv-greenHover active:scale-98 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-tv-green/20"
+          className="flex flex-col items-center justify-center py-2.5 bg-tv-green hover:bg-tv-greenHover active:scale-98 text-white rounded-xl font-bold transition-all shadow-lg shadow-tv-green/20"
         >
-          <ArrowUpCircle size={18} />
-          <span>BUY MARKET</span>
+          <div className="flex items-center gap-1.5 text-sm">
+            <ArrowUpCircle size={16} />
+            <span>BUY MARKET</span>
+          </div>
+          {currentPrice > 0 && (
+            <span className="text-[11px] font-mono opacity-90 font-medium">
+              Ask {askPrice.toFixed(2)}
+            </span>
+          )}
         </button>
 
         <button
           onClick={handleSell}
           disabled={!currentPrice}
-          className="flex items-center justify-center gap-2 py-3 bg-tv-red hover:bg-tv-redHover active:scale-98 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-tv-red/20"
+          className="flex flex-col items-center justify-center py-2.5 bg-tv-red hover:bg-tv-redHover active:scale-98 text-white rounded-xl font-bold transition-all shadow-lg shadow-tv-red/20"
         >
-          <ArrowDownCircle size={18} />
-          <span>SELL MARKET</span>
+          <div className="flex items-center gap-1.5 text-sm">
+            <ArrowDownCircle size={16} />
+            <span>SELL MARKET</span>
+          </div>
+          {currentPrice > 0 && (
+            <span className="text-[11px] font-mono opacity-90 font-medium">
+              Bid {bidPrice.toFixed(2)}
+            </span>
+          )}
         </button>
       </div>
     </div>

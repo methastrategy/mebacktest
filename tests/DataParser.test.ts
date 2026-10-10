@@ -16,4 +16,21 @@ describe('DataParser', () => {
     expect(bars[2].open).toBe(4658.718); // 07:15:00
     expect(bars[0].time).toBeLessThan(bars[1].time);
   });
+
+  it('successfully parses M1 dataset', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const m1Path = path.resolve(__dirname, '../public/data/XAUUSD_M1.csv');
+    expect(fs.existsSync(m1Path)).toBe(true);
+
+    const fd = fs.openSync(m1Path, 'r');
+    const buffer = Buffer.alloc(1024 * 10); // read first 10 KB
+    fs.readSync(fd, buffer, 0, buffer.length, 0);
+    fs.closeSync(fd);
+
+    const snippet = buffer.toString('utf-8');
+    const bars = parseCandleCsv(snippet);
+    expect(bars.length).toBeGreaterThan(10);
+    expect(bars[0].close).toBeGreaterThan(0);
+  });
 });

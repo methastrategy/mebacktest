@@ -21,13 +21,15 @@ export const App: React.FC = () => {
   const [isBlindMode, setIsBlindMode] = useState<boolean>(false);
   const [clickedChartPrice, setClickedChartPrice] = useState<number | undefined>();
 
+  const [spreadPips, setSpreadPips] = useState<number>(25);
+
   // Modals
   const [isPerfModalOpen, setIsPerfModalOpen] = useState<boolean>(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState<boolean>(false);
 
   // Engines Refs (Preserve state across renders)
   const replayEngineRef = useRef<ReplayEngine>(new ReplayEngine());
-  const tradingEngineRef = useRef<GoldTradingEngine>(new GoldTradingEngine(10000));
+  const tradingEngineRef = useRef<GoldTradingEngine>(new GoldTradingEngine(10000, 25));
   const playTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Reactive state for UI
@@ -78,7 +80,7 @@ export const App: React.FC = () => {
     loadDatasetForTimeframe(timeframe);
   }, [timeframe, loadDatasetForTimeframe]);
 
-  // Handle single Step Forward
+  // Handle single Step Forward (60 FPS Performance Optimized)
   const handleStepForward = useCallback(() => {
     const replay = replayEngineRef.current;
     const trader = tradingEngineRef.current;
@@ -92,7 +94,9 @@ export const App: React.FC = () => {
     // Process SL/TP triggers on new candle
     trader.processBarTriggers(nextBar);
 
-    setVisibleBars(replay.getVisibleBars());
+    // CRITICAL OPTIMIZATION: Do not call setVisibleBars(...) here!
+    // Updating only currentBar triggers O(1) incremental series.update(nextBar)
+    // in TradingChart, eliminating setData() overhead and locking 60 FPS.
     setCurrentBar(nextBar);
     setCursorIndex(replay.getCurrentCursor());
     setAccountState(trader.getState());
@@ -157,9 +161,28 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Place manual trade
+  // Spread change handler
+  const handleChangeSpread = useCallback(
+    (newSpread: number) => {
+      setSpreadPips(newSpread);
+      tradingEngineRef.current.setSpread(newSpread);
+      if (currentBar) {
+        tradingEngineRef.current.updateMarketPrice(currentBar.close);
+        setAccountState(tradingEngineRef.current.getState());
+      }
+    },
+    [currentBar]
+  );
+
+  // Place manual trade with configurable spread
   const handlePlaceOrder = useCallback(
-    (params: { type: OrderType; volume: number; stopLoss?: number; takeProfit?: number }) => {
+    (params: {
+      type: OrderType;
+      volume: number;
+      stopLoss?: number;
+      takeProfit?: number;
+      spread?: number;
+    }) => {
       if (!currentBar) return;
 
       tradingEngineRef.current.openMarketOrder({
@@ -170,11 +193,12 @@ export const App: React.FC = () => {
         barIndex: cursorIndex,
         stopLoss: params.stopLoss,
         takeProfit: params.takeProfit,
+        spread: params.spread !== undefined ? params.spread : spreadPips,
       });
 
       setAccountState(tradingEngineRef.current.getState());
     },
-    [currentBar, cursorIndex]
+    [currentBar, cursorIndex, spreadPips]
   );
 
   // Close position manually
@@ -187,16 +211,32 @@ export const App: React.FC = () => {
     [currentBar]
   );
 
+  // Move position SL to Break-Even (Entry Price)
+  const handleMoveToBreakEven = useCallback((id: string) => {
+    tradingEngineRef.current.moveToBreakEven(id);
+    setAccountState(tradingEngineRef.current.getState());
+  }, []);
+
+  // Partially close position (e.g. 50%)
+  const handlePartialClose = useCallback(
+    (id: string, ratio: number = 0.5) => {
+      if (!currentBar) return;
+      tradingEngineRef.current.partialClosePosition(id, ratio, currentBar.close, currentBar.time);
+      setAccountState(tradingEngineRef.current.getState());
+    },
+    [currentBar]
+  );
+
   // Reset Session
   const handleResetSession = useCallback(() => {
     if (window.confirm('ต้องการรีเซ็ตยอดเงินและประวัติการเทรดทั้งหมดหรือไม่?')) {
-      tradingEngineRef.current.reset(10000);
+      tradingEngineRef.current.reset(10000, spreadPips);
       if (currentBar) {
         tradingEngineRef.current.updateMarketPrice(currentBar.close);
       }
       setAccountState(tradingEngineRef.current.getState());
     }
-  }, [currentBar]);
+  }, [currentBar, spreadPips]);
 
   // Custom CSV Upload
   const handleCustomCsvUpload = useCallback((csvText: string, filename: string) => {
@@ -322,11 +362,15 @@ export const App: React.FC = () => {
             currentPrice={currentBar?.close || 0}
             onPlaceOrder={handlePlaceOrder}
             clickedPrice={clickedChartPrice}
+            spreadPips={spreadPips}
+            onChangeSpread={handleChangeSpread}
           />
 
           <PositionList
             positions={accountState.openPositions}
             onClosePosition={handleClosePosition}
+            onBreakEven={handleMoveToBreakEven}
+            onPartialClose={handlePartialClose}
           />
         </div>
       </div>

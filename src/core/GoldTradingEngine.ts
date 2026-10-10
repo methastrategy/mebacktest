@@ -9,6 +9,7 @@ export interface OpenOrderParams {
   barIndex: number;
   stopLoss?: number;
   takeProfit?: number;
+  spread?: number;
 }
 
 export class GoldTradingEngine {
@@ -20,16 +21,26 @@ export class GoldTradingEngine {
   private openPositions: Position[] = [];
   private closedPositions: Position[] = [];
   private currentMarketPrice: number = 0;
+  private spread: number = 0; // in pips (100 pips = $1.00)
 
-  constructor(initialBalance: number = 10000) {
+  constructor(initialBalance: number = 10000, spreadPips: number = 0) {
     this.initialBalance = initialBalance;
     this.balance = initialBalance;
     this.peakEquity = initialBalance;
     this.maxDrawdown = 0;
     this.maxDrawdownPercent = 0;
+    this.spread = Math.max(0, spreadPips);
   }
 
-  public reset(balance: number = 10000) {
+  public getSpread(): number {
+    return this.spread;
+  }
+
+  public setSpread(pips: number): void {
+    this.spread = Math.max(0, pips);
+  }
+
+  public reset(balance: number = 10000, spreadPips?: number) {
     this.initialBalance = balance;
     this.balance = balance;
     this.peakEquity = balance;
@@ -38,23 +49,33 @@ export class GoldTradingEngine {
     this.openPositions = [];
     this.closedPositions = [];
     this.currentMarketPrice = 0;
+    if (spreadPips !== undefined) {
+      this.spread = Math.max(0, spreadPips);
+    }
   }
 
   public openMarketOrder(params: OpenOrderParams): Position {
     const id = `pos_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const effectiveSpread = params.spread !== undefined ? params.spread : this.spread;
+    const spreadOffset = effectiveSpread / 100.0;
+
+    // BUY enters at Ask (price + spread), SELL enters at Bid (price)
+    const entryPrice = params.type === 'BUY' ? params.price + spreadOffset : params.price;
+
     const position: Position = {
       id,
       type: params.type,
       volume: params.volume,
-      entryPrice: params.price,
+      entryPrice,
       entryTime: params.time,
       entryBarIndex: params.barIndex,
       stopLoss: params.stopLoss,
       takeProfit: params.takeProfit,
-      currentPrice: params.price,
+      currentPrice: entryPrice,
       unrealizedPnL: 0,
       pips: 0,
       status: 'OPEN',
+      spread: effectiveSpread,
     };
 
     this.openPositions.push(position);
@@ -62,15 +83,102 @@ export class GoldTradingEngine {
     return position;
   }
 
-  public closePosition(positionId: string, exitPrice: number, exitTime: number, reason: 'MANUAL' | 'SL' | 'TP' = 'MANUAL'): Position | null {
+  public moveToBreakEven(positionId: string): Position | null {
+    const pos = this.openPositions.find((p) => p.id === positionId);
+    if (!pos) return null;
+
+    pos.stopLoss = pos.entryPrice;
+    return pos;
+  }
+
+  public partialClosePosition(
+    positionId: string,
+    ratio: number = 0.5,
+    exitPrice: number,
+    exitTime: number
+  ): { closedPosition: Position; remainingPosition: Position | null } | null {
+    const index = this.openPositions.findIndex((p) => p.id === positionId);
+    if (index === -1 || ratio <= 0) return null;
+
+    const pos = this.openPositions[index];
+
+    if (ratio >= 1.0) {
+      const closed = this.closePosition(pos.id, exitPrice, exitTime, 'MANUAL');
+      return closed ? { closedPosition: closed, remainingPosition: null } : null;
+    }
+
+    const closedVolume = Math.round(pos.volume * ratio * 100) / 100;
+    const remainingVolume = Math.round((pos.volume - closedVolume) * 100) / 100;
+
+    if (closedVolume <= 0) return null;
+
+    const posSpread = pos.spread !== undefined ? pos.spread : this.spread;
+    const spreadOffset = posSpread / 100.0;
+    // BUY closes at Bid (exitPrice); SELL closes at Ask (exitPrice + spread)
+    const effectiveExitPrice = pos.type === 'SELL' ? exitPrice + spreadOffset : exitPrice;
+    const pnl = this.calculatePnL(pos.type, pos.entryPrice, effectiveExitPrice, closedVolume);
+    const pips = this.calculatePips(pos.type, pos.entryPrice, effectiveExitPrice);
+
+    const closedPart: Position = {
+      id: `${pos.id}_part_${Date.now()}`,
+      type: pos.type,
+      volume: closedVolume,
+      entryPrice: pos.entryPrice,
+      entryTime: pos.entryTime,
+      entryBarIndex: pos.entryBarIndex,
+      stopLoss: pos.stopLoss,
+      takeProfit: pos.takeProfit,
+      currentPrice: effectiveExitPrice,
+      exitPrice: effectiveExitPrice,
+      exitTime,
+      realizedPnL: pnl,
+      pips,
+      unrealizedPnL: 0,
+      status: 'CLOSED_MANUAL',
+      closeReason: `PARTIAL_${Math.round(ratio * 100)}%`,
+      spread: posSpread,
+    };
+
+    this.balance += pnl;
+    this.closedPositions.push(closedPart);
+
+    if (remainingVolume > 0) {
+      pos.volume = remainingVolume;
+      const currentPrice = pos.type === 'SELL' ? exitPrice + spreadOffset : exitPrice;
+      pos.currentPrice = currentPrice;
+      pos.unrealizedPnL = this.calculatePnL(pos.type, pos.entryPrice, currentPrice, pos.volume);
+      pos.pips = this.calculatePips(pos.type, pos.entryPrice, currentPrice);
+      this.updateDrawdown();
+      return { closedPosition: closedPart, remainingPosition: pos };
+    } else {
+      this.openPositions.splice(index, 1);
+      this.updateDrawdown();
+      return { closedPosition: closedPart, remainingPosition: null };
+    }
+  }
+
+  public closePosition(
+    positionId: string,
+    exitPrice: number,
+    exitTime: number,
+    reason: 'MANUAL' | 'SL' | 'TP' = 'MANUAL'
+  ): Position | null {
     const index = this.openPositions.findIndex((p) => p.id === positionId);
     if (index === -1) return null;
 
     const [pos] = this.openPositions.splice(index, 1);
-    const pnl = this.calculatePnL(pos.type, pos.entryPrice, exitPrice, pos.volume);
-    const pips = this.calculatePips(pos.type, pos.entryPrice, exitPrice);
+    const posSpread = pos.spread !== undefined ? pos.spread : this.spread;
+    const spreadOffset = posSpread / 100.0;
 
-    pos.exitPrice = exitPrice;
+    // In manual close: BUY closes at Bid, SELL closes at Ask
+    // In SL/TP triggers: exitPrice is already the exact trigger fill price
+    const effectiveExitPrice =
+      reason === 'MANUAL' && pos.type === 'SELL' ? exitPrice + spreadOffset : exitPrice;
+
+    const pnl = this.calculatePnL(pos.type, pos.entryPrice, effectiveExitPrice, pos.volume);
+    const pips = this.calculatePips(pos.type, pos.entryPrice, effectiveExitPrice);
+
+    pos.exitPrice = effectiveExitPrice;
     pos.exitTime = exitTime;
     pos.realizedPnL = pnl;
     pos.pips = pips;
@@ -88,9 +196,13 @@ export class GoldTradingEngine {
   public updateMarketPrice(price: number): void {
     this.currentMarketPrice = price;
     for (const pos of this.openPositions) {
-      pos.currentPrice = price;
-      pos.unrealizedPnL = this.calculatePnL(pos.type, pos.entryPrice, price, pos.volume);
-      pos.pips = this.calculatePips(pos.type, pos.entryPrice, price);
+      const posSpread = pos.spread !== undefined ? pos.spread : this.spread;
+      const spreadOffset = posSpread / 100.0;
+      // BUY valued at Bid (price), SELL valued at Ask (price + spread)
+      const currentPrice = pos.type === 'SELL' ? price + spreadOffset : price;
+      pos.currentPrice = currentPrice;
+      pos.unrealizedPnL = this.calculatePnL(pos.type, pos.entryPrice, currentPrice, pos.volume);
+      pos.pips = this.calculatePips(pos.type, pos.entryPrice, currentPrice);
     }
     this.updateDrawdown();
   }
@@ -100,6 +212,8 @@ export class GoldTradingEngine {
     const remainingPositions: Position[] = [];
 
     for (const pos of this.openPositions) {
+      const posSpread = pos.spread !== undefined ? pos.spread : this.spread;
+      const spreadOffset = posSpread / 100.0;
       let triggered = false;
       let exitPrice = 0;
       let reason: 'SL' | 'TP' = 'SL';
@@ -109,7 +223,6 @@ export class GoldTradingEngine {
         const hitTP = pos.takeProfit !== undefined && bar.high >= pos.takeProfit;
 
         if (hitSL && hitTP) {
-          // Conservative risk: trigger SL
           triggered = true;
           exitPrice = pos.stopLoss!;
           reason = 'SL';
@@ -123,9 +236,11 @@ export class GoldTradingEngine {
           reason = 'TP';
         }
       } else {
-        // SELL
-        const hitSL = pos.stopLoss !== undefined && bar.high >= pos.stopLoss;
-        const hitTP = pos.takeProfit !== undefined && bar.low <= pos.takeProfit;
+        // SELL triggers against Ask prices (Bid + spreadOffset)
+        const askHigh = bar.high + spreadOffset;
+        const askLow = bar.low + spreadOffset;
+        const hitSL = pos.stopLoss !== undefined && askHigh >= pos.stopLoss;
+        const hitTP = pos.takeProfit !== undefined && askLow <= pos.takeProfit;
 
         if (hitSL && hitTP) {
           triggered = true;
@@ -157,10 +272,11 @@ export class GoldTradingEngine {
         this.closedPositions.push(pos);
         triggeredPositions.push(pos);
       } else {
-        // Update to bar close
-        pos.currentPrice = bar.close;
-        pos.unrealizedPnL = this.calculatePnL(pos.type, pos.entryPrice, bar.close, pos.volume);
-        pos.pips = this.calculatePips(pos.type, pos.entryPrice, bar.close);
+        // Update to bar close (Ask close for SELL, Bid close for BUY)
+        const currentPrice = pos.type === 'SELL' ? bar.close + spreadOffset : bar.close;
+        pos.currentPrice = currentPrice;
+        pos.unrealizedPnL = this.calculatePnL(pos.type, pos.entryPrice, currentPrice, pos.volume);
+        pos.pips = this.calculatePips(pos.type, pos.entryPrice, currentPrice);
         remainingPositions.push(pos);
       }
     }

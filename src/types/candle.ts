@@ -11,4 +11,4 @@ export interface CandleBar {
   timeThai?: string;        // Thai timestamp string
 }
 
-export type Timeframe = 'M5' | 'M15' | 'H1' | 'D1';
+export type Timeframe = 'M1' | 'M5' | 'M15' | 'H1' | 'D1';
