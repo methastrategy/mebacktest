@@ -162,9 +162,9 @@ CREATE TABLE public.trades (
 - [x] ชุดข้อมูลทองคำ M1, M5, M15, H1, D1
 - [x] ปุ่ม Break-Even (BE), ปุ่มปิด 50%, และจำลอง Spread
 - [x] Indicators EMA 20, 50, 200 และตัวเลื่อนขอบกราฟ (Chart Shift)
-- [ ] **Prop Firm Mode Widget**: เพิ่มกล่องตรวจจับกฎ FTMO (Max Daily Loss 5%, Max Loss 10%, High-Watermark Listener)
-- [ ] **Core Drawing Tools**: วาดกล่องโซน (Rectangle) สำหรับ Supply/Demand และเส้นแนวนอน (Horizontal Ray)
-- [ ] **Setup Tagging**: เมนูเลือกเหตุผลในการเข้าออเดอร์ก่อนกดเทรด
+- [x] **Prop Firm Mode Widget**: เพิ่มกล่องตรวจจับกฎ FTMO (Max Daily Loss 5%, Max Loss 10%, High-Watermark Listener)
+- [x] **Core Drawing Tools**: วาดกล่องโซน (Rectangle) สำหรับ Supply/Demand และเส้นแนวนอน (Horizontal Ray)
+- [x] **Setup Tagging**: เมนูเลือกเหตุผลในการเข้าออเดอร์ก่อนกดเทรด และแสดงผล Strategy Breakdown Analytics
 
 ### Phase 2: ระบบคลาวด์และฐานข้อมูล (Cloud & Auth Layer) (Sprint 2)
 - [ ] Scaffold Next.js 15 App Router ร่วมกับสแต็กเดิม
