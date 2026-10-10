@@ -60,10 +60,33 @@ describe('BillingEngine', () => {
     expect(invalid.finalPriceTHB).toBe(490);
   });
 
-  it('generates valid PromptPay EMVCo payload and reference ID', () => {
+  it('generates valid PromptPay EMVCo payload with verified CRC-16 checksum', () => {
     const res = engine.generatePromptPayPayload('0812345678', 490);
     expect(res.payload).toContain('00020101021229370016A00000067701011101130066812345678');
     expect(res.referenceId.startsWith('PAY-')).toBe(true);
     expect(res.qrSvgData.startsWith('data:image/svg+xml')).toBe(true);
+
+    // Verify CRC-16 Checksum
+    expect(res.payload.length).toBeGreaterThan(60);
+    expect(engine.verifyPromptPayChecksum(res.payload)).toBe(true);
+
+    // Corrupted payload must fail checksum verification
+    const corrupted = res.payload.substring(0, res.payload.length - 1) + '0';
+    expect(engine.verifyPromptPayChecksum(corrupted)).toBe(false);
+  });
+
+  it('handles 13-digit National ID / Tax ID in PromptPay format', () => {
+    const taxId = '1100701234567';
+    const res = engine.generatePromptPayPayload(taxId, 199);
+    // Subtag 02 for 13-digit National/Tax ID
+    expect(res.payload).toContain('0016A00000067701011102131100701234567');
+    expect(engine.verifyPromptPayChecksum(res.payload)).toBe(true);
+  });
+
+  it('generates authentic scannable QR SVG with module rects', () => {
+    const res = engine.generatePromptPayPayload('0812345678', 99);
+    expect(res.qrSvgData).toContain('<svg');
+    expect(res.qrSvgData).toContain('<rect');
+    expect(res.qrSvgData).toContain('fill="#0f172a"');
   });
 });

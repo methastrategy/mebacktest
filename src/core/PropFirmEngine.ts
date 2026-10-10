@@ -61,6 +61,15 @@ export class PropFirmEngine {
     this.breachReason = undefined;
   }
 
+  public restoreState(state: PropFirmState): void {
+    this.status = state.status;
+    this.initialBalance = state.initialBalance;
+    this.currentEquity = state.currentEquity;
+    this.currentBalance = state.currentBalance;
+    this.dayStartBalance = state.dayStartBalance;
+    this.breachReason = state.breachReason;
+  }
+
   public updateEquity(equity: number, balance: number, timestampSeconds: number): PropFirmState {
     this.currentEquity = equity;
     this.currentBalance = balance;

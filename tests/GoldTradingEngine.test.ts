@@ -359,4 +359,39 @@ describe('GoldTradingEngine', () => {
     expect(engine.getState().balance).toBeCloseTo(11750.0, 2);
     expect(engine.getState().openPositions.length).toBe(0);
   });
+
+  it('restores state accurately including balance, peak equity, and open positions', () => {
+    // Open and close a trade on original engine
+    engine.setAssetSymbol('EURUSD');
+    const pos = engine.openMarketOrder({
+      type: 'BUY',
+      volume: 0.1,
+      price: 1.08500,
+      time: 1700000000,
+      barIndex: 5,
+    });
+    engine.updateMarketPrice(1.08600);
+    const savedState = engine.getState();
+
+    // Create a new engine instance and restore
+    const freshEngine = new GoldTradingEngine(5000);
+    freshEngine.restoreState(savedState, 'EURUSD');
+
+    const restoredState = freshEngine.getState();
+    expect(restoredState.balance).toBe(savedState.balance);
+    expect(restoredState.equity).toBe(savedState.equity);
+    expect(restoredState.peakEquity).toBe(savedState.peakEquity);
+    expect(restoredState.openPositions.length).toBe(1);
+    expect(restoredState.openPositions[0].symbol).toBe('EURUSD');
+    expect(restoredState.openPositions[0].entryPrice).toBe(1.08500);
+
+    // Verify further operations work seamlessly on restored engine
+    freshEngine.closePosition(pos.id, 1.08700, 1700000060);
+    const finalState = freshEngine.getState();
+    expect(finalState.openPositions.length).toBe(0);
+    expect(finalState.closedPositions.length).toBe(1);
+    expect(finalState.closedPositions[0].symbol).toBe('EURUSD');
+    expect(finalState.winRate).toBe(100);
+  });
 });
+

@@ -77,6 +77,27 @@ export class GoldTradingEngine {
     }
   }
 
+  public restoreState(state: AccountState, symbol?: string): void {
+    this.initialBalance = state.initialBalance;
+    this.balance = state.balance;
+    this.peakEquity = Math.max(state.balance, state.equity, state.initialBalance);
+    this.maxDrawdown = state.maxDrawdown;
+    this.maxDrawdownPercent = state.maxDrawdownPercent;
+    const activeSymbol = symbol || this.assetSymbol;
+    if (symbol) {
+      this.assetSymbol = symbol;
+      this.spec = getAssetSpec(symbol);
+    }
+    this.openPositions = state.openPositions.map((p) => ({
+      ...p,
+      symbol: p.symbol || activeSymbol,
+    }));
+    this.closedPositions = state.closedPositions.map((p) => ({
+      ...p,
+      symbol: p.symbol || activeSymbol,
+    }));
+  }
+
   public openMarketOrder(params: OpenOrderParams): Position {
     const id = `pos_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const effectiveSpread = params.spread !== undefined ? params.spread : this.spread;
@@ -100,6 +121,7 @@ export class GoldTradingEngine {
       status: 'OPEN',
       spread: effectiveSpread,
       setupTag: params.setupTag,
+      symbol: this.assetSymbol,
     };
 
     this.openPositions.push(position);
@@ -183,6 +205,7 @@ export class GoldTradingEngine {
       status: 'CLOSED_MANUAL',
       closeReason: `PARTIAL_${Math.round(ratio * 100)}%`,
       spread: posSpread,
+      symbol: pos.symbol || this.assetSymbol,
     };
 
     this.balance += pnl;

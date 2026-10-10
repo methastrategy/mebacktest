@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Download, Percent, Award, ShieldAlert, BarChart3 } from 'lucide-react';
 import { AccountState } from '../types/trade';
+import { getAssetSpec } from '../core/AssetSpecs';
 
 interface PerformanceModalProps {
   isOpen: boolean;
@@ -18,25 +19,29 @@ export const PerformanceModal: React.FC<PerformanceModalProps> = ({
   const exportCsv = () => {
     if (account.closedPositions.length === 0) return;
 
-    const headers = ['Trade ID', 'Type', 'Volume', 'Entry Price', 'Exit Price', 'Realized PnL ($)', 'Pips', 'Setup Tag', 'Close Reason'];
-    const rows = account.closedPositions.map((p) => [
-      p.id,
-      p.type,
-      p.volume,
-      p.entryPrice.toFixed(2),
-      p.exitPrice?.toFixed(2) || '-',
-      (p.realizedPnL || 0).toFixed(2),
-      p.pips.toFixed(1),
-      p.setupTag || 'Unspecified',
-      p.status,
-    ]);
+    const headers = ['Trade ID', 'Symbol', 'Type', 'Volume', 'Entry Price', 'Exit Price', 'Realized PnL ($)', 'Pips', 'Setup Tag', 'Close Reason'];
+    const rows = account.closedPositions.map((p) => {
+      const spec = getAssetSpec(p.symbol || 'XAUUSD');
+      return [
+        p.id,
+        p.symbol || 'XAUUSD',
+        p.type,
+        p.volume,
+        p.entryPrice.toFixed(spec.digits),
+        p.exitPrice !== undefined ? p.exitPrice.toFixed(spec.digits) : '-',
+        (p.realizedPnL || 0).toFixed(2),
+        p.pips.toFixed(1),
+        p.setupTag || 'Unspecified',
+        p.status,
+      ];
+    });
 
     const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `xauusd_replay_trades_${Date.now()}.csv`);
+    link.setAttribute('download', `mebacktest_trades_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -190,6 +195,7 @@ export const PerformanceModal: React.FC<PerformanceModalProps> = ({
                 <table className="w-full text-xs text-left">
                   <thead className="bg-tv-surface/80 text-tv-muted uppercase font-mono text-[10px] border-b border-tv-border">
                     <tr>
+                      <th className="py-2.5 px-3">Symbol</th>
                       <th className="py-2.5 px-3">Type</th>
                       <th className="py-2.5 px-3">Lots</th>
                       <th className="py-2.5 px-3">Entry</th>
@@ -202,9 +208,11 @@ export const PerformanceModal: React.FC<PerformanceModalProps> = ({
                   </thead>
                   <tbody className="divide-y divide-tv-border font-mono">
                     {account.closedPositions.map((p) => {
+                      const spec = getAssetSpec(p.symbol || 'XAUUSD');
                       const isWin = (p.realizedPnL || 0) >= 0;
                       return (
                         <tr key={p.id} className="hover:bg-tv-surface/50 transition-colors">
+                          <td className="py-2 px-3 text-amber-400 font-bold">{p.symbol || 'XAUUSD'}</td>
                           <td className="py-2 px-3 font-bold">
                             <span
                               className={`px-1.5 py-0.5 rounded text-[10px] ${
@@ -217,8 +225,8 @@ export const PerformanceModal: React.FC<PerformanceModalProps> = ({
                             </span>
                           </td>
                           <td className="py-2 px-3 text-white">{p.volume}</td>
-                          <td className="py-2 px-3 text-tv-text">{p.entryPrice.toFixed(2)}</td>
-                          <td className="py-2 px-3 text-tv-text">{p.exitPrice?.toFixed(2) || '-'}</td>
+                          <td className="py-2 px-3 text-tv-text">{p.entryPrice.toFixed(spec.digits)}</td>
+                          <td className="py-2 px-3 text-tv-text">{p.exitPrice !== undefined ? p.exitPrice.toFixed(spec.digits) : '-'}</td>
                           <td className={`py-2 px-3 ${isWin ? 'text-tv-green' : 'text-tv-red'}`}>
                             {p.pips >= 0 ? '+' : ''}{p.pips.toFixed(1)}p
                           </td>

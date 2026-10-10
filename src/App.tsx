@@ -72,6 +72,9 @@ export const App: React.FC = () => {
   const tradingEngineRef = useRef<GoldTradingEngine>(new GoldTradingEngine(100000, 25, 'XAUUSD'));
   const propFirmEngineRef = useRef<PropFirmEngine>(new PropFirmEngine({ initialBalance: 100000 }));
   const playTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isRestoringSessionRef = useRef<boolean>(false);
+  const prevSymbolRef = useRef<string>('XAUUSD');
+  const isFirstMountRef = useRef<boolean>(true);
 
   // Reactive state for UI
   const [visibleBars, setVisibleBars] = useState<CandleBar[]>([]);
@@ -113,8 +116,11 @@ export const App: React.FC = () => {
 
       if (initialBar) {
         tradingEngineRef.current.updateMarketPrice(initialBar.close);
-        setAccountState(tradingEngineRef.current.getState());
+        if (!isRestoringSessionRef.current) {
+          setAccountState(tradingEngineRef.current.getState());
+        }
       }
+      isRestoringSessionRef.current = false;
     } catch (err) {
       console.error('Error loading dataset:', err);
     } finally {
@@ -122,31 +128,54 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Symbol or Timeframe change
+  // Initial Mount & URL Query Check (?share=slug)
   useEffect(() => {
-    const spec = getAssetSpec(currentSymbol);
-    setSpreadPips(spec.defaultSpread);
-    tradingEngineRef.current.reset(propFirmState.initialBalance, spec.defaultSpread, currentSymbol);
-    loadDataset(currentSymbol, timeframe);
-  }, [currentSymbol, timeframe, loadDataset, propFirmState.initialBalance]);
-
-  // Check URL query for share link e.g. ?share=slug
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    const shareParam = params.get('share');
+    isFirstMountRef.current = false;
+    const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const shareParam = params?.get('share');
     if (shareParam) {
       const sess = CloudSessionService.getInstance().getSessionById(shareParam);
       if (sess) {
+        isRestoringSessionRef.current = true;
         setIsReadOnlySession(true);
         setSharedSessionTitle(sess.title);
-        setCurrentSymbol(sess.symbol);
-        setTimeframe(sess.timeframe);
+        tradingEngineRef.current.restoreState(sess.accountState, sess.symbol);
+        propFirmEngineRef.current.restoreState(sess.propFirmState);
         setAccountState(sess.accountState);
         setPropFirmState(sess.propFirmState);
+        setCurrentSymbol(sess.symbol);
+        setTimeframe(sess.timeframe);
+        prevSymbolRef.current = sess.symbol;
+        loadDataset(sess.symbol, sess.timeframe);
+        return;
       }
     }
-  }, []);
+
+    const spec = getAssetSpec(currentSymbol);
+    setSpreadPips(spec.defaultSpread);
+    loadDataset(currentSymbol, timeframe);
+  }, []); // Run on mount only
+
+  // Symbol Change Handler (does NOT trigger on timeframe change)
+  useEffect(() => {
+    if (isFirstMountRef.current) return;
+    if (prevSymbolRef.current === currentSymbol) return;
+    prevSymbolRef.current = currentSymbol;
+
+    const spec = getAssetSpec(currentSymbol);
+    setSpreadPips(spec.defaultSpread);
+    if (!isRestoringSessionRef.current) {
+      tradingEngineRef.current.reset(propFirmState.initialBalance, spec.defaultSpread, currentSymbol);
+      propFirmEngineRef.current.reset(propFirmState.initialBalance);
+    }
+    loadDataset(currentSymbol, timeframe);
+  }, [currentSymbol, loadDataset, propFirmState.initialBalance, timeframe]);
+
+  // Timeframe Change Handler (loads new candles WITHOUT resetting account)
+  useEffect(() => {
+    if (isFirstMountRef.current) return;
+    loadDataset(currentSymbol, timeframe);
+  }, [timeframe, currentSymbol, loadDataset]);
 
   // Handle single Step Forward (60 FPS Performance Optimized)
   const handleStepForward = useCallback(() => {
@@ -342,13 +371,21 @@ export const App: React.FC = () => {
   }, [handleSelectAccountSize, propFirmState.initialBalance]);
 
   // Load past Cloud Session into Terminal
-  const handleLoadCloudSession = useCallback((sess: CloudSessionRecord) => {
-    setCurrentSymbol(sess.symbol);
-    setTimeframe(sess.timeframe);
-    setAccountState(sess.accountState);
-    setPropFirmState(sess.propFirmState);
-    setIsReadOnlySession(false);
-  }, []);
+  const handleLoadCloudSession = useCallback(
+    (sess: CloudSessionRecord) => {
+      isRestoringSessionRef.current = true;
+      prevSymbolRef.current = sess.symbol;
+      tradingEngineRef.current.restoreState(sess.accountState, sess.symbol);
+      propFirmEngineRef.current.restoreState(sess.propFirmState);
+      setAccountState(sess.accountState);
+      setPropFirmState(sess.propFirmState);
+      setCurrentSymbol(sess.symbol);
+      setTimeframe(sess.timeframe);
+      setIsReadOnlySession(false);
+      loadDataset(sess.symbol, sess.timeframe);
+    },
+    [loadDataset]
+  );
 
   // Custom CSV Upload
   const handleCustomCsvUpload = useCallback((csvText: string, filename: string) => {
@@ -507,6 +544,7 @@ export const App: React.FC = () => {
             closedPositions={accountState.closedPositions}
             isBlindMode={isBlindMode}
             onPriceClick={(price) => setClickedChartPrice(price)}
+            symbol={currentSymbol}
           />
 
           {/* Floating Bottom Replay Controls */}
@@ -539,6 +577,8 @@ export const App: React.FC = () => {
             clickedPrice={clickedChartPrice}
             spreadPips={spreadPips}
             onChangeSpread={handleChangeSpread}
+            symbol={currentSymbol}
+            isReadOnly={isReadOnlySession}
           />
 
           <PositionList

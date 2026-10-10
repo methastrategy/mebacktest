@@ -77,4 +77,40 @@ describe('CloudSessionService', () => {
     expect(deleted).toBe(true);
     expect(cloudService.getSavedSessions().length).toBe(0);
   });
+
+  it('syncs multi-asset trades with correct symbols into cloud trades storage', () => {
+    const mockPositions: any[] = [
+      {
+        id: 'pos_1',
+        symbol: 'BTCUSD',
+        type: 'BUY',
+        volume: 0.1,
+        entryPrice: 65000,
+        currentPrice: 66000,
+        realizedPnL: 100,
+        pips: 1000,
+        entryTime: 1700000000,
+      },
+      {
+        id: 'pos_2',
+        symbol: 'EURUSD',
+        type: 'SELL',
+        volume: 1.0,
+        entryPrice: 1.08500,
+        currentPrice: 1.08400,
+        realizedPnL: 100,
+        pips: 10,
+        entryTime: 1700000050,
+      },
+    ];
+
+    const count = cloudService.syncLocalTradesToCloud(mockPositions, 'sess_multi_123', 'XAUUSD');
+    expect(count).toBe(2);
+
+    const trades = cloudService.getAllCloudTrades();
+    expect(trades.length).toBe(2);
+    expect(trades.find((t) => t.id === 'pos_1')?.symbol).toBe('BTCUSD');
+    expect(trades.find((t) => t.id === 'pos_2')?.symbol).toBe('EURUSD');
+  });
 });
+

@@ -98,7 +98,7 @@ export class CloudSessionService {
     safeSetItem(SESSIONS_STORAGE_KEY, JSON.stringify(updated));
 
     // Also sync closed positions as individual trades
-    this.syncLocalTradesToCloud(params.accountState.closedPositions, session.id);
+    this.syncLocalTradesToCloud(params.accountState.closedPositions, session.id, params.symbol);
 
     return session;
   }
@@ -120,7 +120,11 @@ export class CloudSessionService {
     return `${origin}?share=${session.shareSlug}`;
   }
 
-  public syncLocalTradesToCloud(positions: Position[], sessionId: string): number {
+  public syncLocalTradesToCloud(
+    positions: Position[],
+    sessionId: string,
+    defaultSymbol: string = 'XAUUSD'
+  ): number {
     const user = AuthService.getInstance().getCurrentUser();
     const userId = user ? user.id : 'guest_trader';
 
@@ -128,7 +132,7 @@ export class CloudSessionService {
       id: p.id,
       sessionId,
       userId,
-      symbol: 'XAUUSD',
+      symbol: p.symbol || defaultSymbol,
       type: p.type,
       volume: p.volume,
       entryPrice: p.entryPrice,

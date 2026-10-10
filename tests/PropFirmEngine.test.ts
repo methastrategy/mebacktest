@@ -60,4 +60,24 @@ describe('PropFirmEngine', () => {
     const status = engine.getStatus();
     expect(status.status).toBe('BREACHED_TOTAL');
   });
+
+  it('restores state accurately from previous session', () => {
+    // Progress engine to passed status
+    engine.updateEquity(108500, 100000, 1700000000);
+    const saved = engine.getStatus();
+
+    const freshEngine = new PropFirmEngine({
+      initialBalance: 100000,
+      maxDailyLossPercent: 5.0,
+      maxTotalLossPercent: 10.0,
+      targetProfitPercent: 8.0,
+    });
+    freshEngine.restoreState(saved);
+
+    const restored = freshEngine.getStatus();
+    expect(restored.status).toBe('PASSED');
+    expect(restored.profitPercent).toBeCloseTo(8.5, 1);
+    expect(restored.currentEquity).toBe(108500);
+  });
 });
+

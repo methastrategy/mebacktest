@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowUpCircle, ArrowDownCircle, ShieldAlert, Target, DollarSign, Tag } from 'lucide-react';
 import { OrderType } from '../types/trade';
+import { getAssetSpec } from '../core/AssetSpecs';
 
 interface OrderEntryPanelProps {
   currentPrice: number;
@@ -15,6 +16,8 @@ interface OrderEntryPanelProps {
   clickedPrice?: number;
   spreadPips?: number;
   onChangeSpread?: (pips: number) => void;
+  symbol?: string;
+  isReadOnly?: boolean;
 }
 
 const LOT_PRESETS = [0.01, 0.05, 0.1, 0.25, 0.5, 1.0];
@@ -34,6 +37,8 @@ export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
   clickedPrice,
   spreadPips = 20,
   onChangeSpread,
+  symbol = 'XAUUSD',
+  isReadOnly = false,
 }) => {
   const [volume, setVolume] = useState<number>(0.1);
   const [stopLoss, setStopLoss] = useState<string>('');
@@ -41,7 +46,8 @@ export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
   const [targetType, setTargetType] = useState<OrderType>('BUY');
   const [setupTag, setSetupTag] = useState<string>('Liquidity Sweep');
 
-  const spreadOffset = spreadPips / 100.0;
+  const spec = getAssetSpec(symbol);
+  const spreadOffset = spreadPips / spec.pipScale;
   const askPrice = currentPrice > 0 ? currentPrice + spreadOffset : 0;
   const bidPrice = currentPrice;
 
@@ -51,40 +57,39 @@ export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
       if (clickedPrice < currentPrice) {
         // Below current price -> default SL for BUY or TP for SELL
         if (targetType === 'BUY') {
-          setStopLoss(clickedPrice.toFixed(2));
+          setStopLoss(clickedPrice.toFixed(spec.digits));
         } else {
-          setTakeProfit(clickedPrice.toFixed(2));
+          setTakeProfit(clickedPrice.toFixed(spec.digits));
         }
       } else {
         // Above current price -> default TP for BUY or SL for SELL
         if (targetType === 'BUY') {
-          setTakeProfit(clickedPrice.toFixed(2));
+          setTakeProfit(clickedPrice.toFixed(spec.digits));
         } else {
-          setStopLoss(clickedPrice.toFixed(2));
+          setStopLoss(clickedPrice.toFixed(spec.digits));
         }
       }
     }
-  }, [clickedPrice, currentPrice, targetType]);
+  }, [clickedPrice, currentPrice, targetType, spec.digits]);
 
-  // Apply Quick Pip Offsets
-  // In Gold: 100 pips = $1.00 move
+  // Apply Quick Pip Offsets according to asset pipScale
   const applyPipOffsetSL = (pips: number) => {
     if (!currentPrice) return;
-    const offset = pips / 100.0;
+    const offset = pips / spec.pipScale;
     if (targetType === 'BUY') {
-      setStopLoss((currentPrice - offset).toFixed(2));
+      setStopLoss((currentPrice - offset).toFixed(spec.digits));
     } else {
-      setStopLoss((currentPrice + offset).toFixed(2));
+      setStopLoss((currentPrice + offset).toFixed(spec.digits));
     }
   };
 
   const applyPipOffsetTP = (pips: number) => {
     if (!currentPrice) return;
-    const offset = pips / 100.0;
+    const offset = pips / spec.pipScale;
     if (targetType === 'BUY') {
-      setTakeProfit((currentPrice + offset).toFixed(2));
+      setTakeProfit((currentPrice + offset).toFixed(spec.digits));
     } else {
-      setTakeProfit((currentPrice - offset).toFixed(2));
+      setTakeProfit((currentPrice - offset).toFixed(spec.digits));
     }
   };
 
@@ -98,12 +103,12 @@ export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
 
   if (currentPrice > 0 && parsedSL) {
     const slDist = Math.abs(currentPrice - parsedSL);
-    riskAmount = slDist * volume * 100;
+    riskAmount = slDist * volume * spec.multiplier;
   }
 
   if (currentPrice > 0 && parsedTP) {
     const tpDist = Math.abs(currentPrice - parsedTP);
-    rewardAmount = tpDist * volume * 100;
+    rewardAmount = tpDist * volume * spec.multiplier;
   }
 
   if (riskAmount > 0 && rewardAmount > 0) {
@@ -362,12 +367,23 @@ export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
         <span className="font-mono font-bold text-amber-400">{riskRewardRatio}</span>
       </div>
 
+      {/* Read-Only Banner if active */}
+      {isReadOnly && (
+        <div className="py-1.5 px-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-center text-[10px] text-amber-300 font-bold uppercase tracking-wider">
+          Shared Session • Orders Disabled
+        </div>
+      )}
+
       {/* Instant Action Execution Buttons */}
       <div className="grid grid-cols-2 gap-2.5 pt-1">
         <button
           onClick={handleBuy}
-          disabled={!currentPrice}
-          className="flex flex-col items-center justify-center py-2.5 bg-tv-green hover:bg-tv-greenHover active:scale-98 text-white rounded-xl font-bold transition-all shadow-lg shadow-tv-green/20"
+          disabled={!currentPrice || isReadOnly}
+          className={`flex flex-col items-center justify-center py-2.5 rounded-xl font-bold transition-all shadow-lg ${
+            isReadOnly
+              ? 'bg-tv-surface text-tv-muted cursor-not-allowed border border-tv-border'
+              : 'bg-tv-green hover:bg-tv-greenHover active:scale-98 text-white shadow-tv-green/20'
+          }`}
         >
           <div className="flex items-center gap-1.5 text-sm">
             <ArrowUpCircle size={16} />
@@ -375,15 +391,19 @@ export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
           </div>
           {currentPrice > 0 && (
             <span className="text-[11px] font-mono opacity-90 font-medium">
-              Ask {askPrice.toFixed(2)}
+              Ask {askPrice.toFixed(spec.digits)}
             </span>
           )}
         </button>
 
         <button
           onClick={handleSell}
-          disabled={!currentPrice}
-          className="flex flex-col items-center justify-center py-2.5 bg-tv-red hover:bg-tv-redHover active:scale-98 text-white rounded-xl font-bold transition-all shadow-lg shadow-tv-red/20"
+          disabled={!currentPrice || isReadOnly}
+          className={`flex flex-col items-center justify-center py-2.5 rounded-xl font-bold transition-all shadow-lg ${
+            isReadOnly
+              ? 'bg-tv-surface text-tv-muted cursor-not-allowed border border-tv-border'
+              : 'bg-tv-red hover:bg-tv-redHover active:scale-98 text-white shadow-tv-red/20'
+          }`}
         >
           <div className="flex items-center gap-1.5 text-sm">
             <ArrowDownCircle size={16} />
@@ -391,7 +411,7 @@ export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
           </div>
           {currentPrice > 0 && (
             <span className="text-[11px] font-mono opacity-90 font-medium">
-              Bid {bidPrice.toFixed(2)}
+              Bid {bidPrice.toFixed(spec.digits)}
             </span>
           )}
         </button>

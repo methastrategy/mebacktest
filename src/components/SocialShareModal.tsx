@@ -12,6 +12,30 @@ interface SocialShareModalProps {
   symbol: string;
 }
 
+function safeRoundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+): void {
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, w, h, r);
+  } else {
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+}
+
 export const SocialShareModal: React.FC<SocialShareModalProps> = ({
   isOpen,
   onClose,
@@ -138,7 +162,7 @@ export const SocialShareModal: React.FC<SocialShareModalProps> = ({
     // Return percentage pill
     ctx.fillStyle = isProfit ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)';
     ctx.beginPath();
-    ctx.roundRect(70, 275, 180, 36, 18);
+    safeRoundRect(ctx, 70, 275, 180, 36, 18);
     ctx.fill();
 
     ctx.strokeStyle = isProfit ? 'rgba(16, 185, 129, 0.4)' : 'rgba(244, 63, 94, 0.4)';
@@ -220,7 +244,7 @@ export const SocialShareModal: React.FC<SocialShareModalProps> = ({
       // Card Background
       ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
       ctx.beginPath();
-      ctx.roundRect(x, cardY, cardWidth, cardHeight, 14);
+      safeRoundRect(ctx, x, cardY, cardWidth, cardHeight, 14);
       ctx.fill();
 
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
@@ -267,12 +291,26 @@ export const SocialShareModal: React.FC<SocialShareModalProps> = ({
   const handleCopyToClipboard = async () => {
     if (!canvasRef.current) return;
     try {
-      canvasRef.current.toBlob(async (blob) => {
-        if (!blob) return;
-        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
+        canvasRef.current.toBlob(async (blob) => {
+          if (!blob) return;
+          try {
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          } catch {
+            if (dataUrl && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(dataUrl);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }
+          }
+        });
+      } else if (dataUrl && navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(dataUrl);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-      });
+      }
     } catch {
       // Fallback
     }

@@ -11,6 +11,7 @@ import {
 import { CandleBar } from '../types/candle';
 import { Position } from '../types/trade';
 import { calculateEMA, calculateNextEMA } from '../core/indicators';
+import { getAssetSpec } from '../core/AssetSpecs';
 import { MousePointer, Minus, Layers, Trash2 } from 'lucide-react';
 
 interface TradingChartProps {
@@ -20,6 +21,7 @@ interface TradingChartProps {
   closedPositions: Position[];
   isBlindMode: boolean;
   onPriceClick?: (price: number) => void;
+  symbol?: string;
 }
 
 export const TradingChart: React.FC<TradingChartProps> = ({
@@ -29,6 +31,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   closedPositions,
   isBlindMode,
   onPriceClick,
+  symbol = 'XAUUSD',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -58,6 +61,11 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   const activeToolRef = useRef<'NONE' | 'LINE' | 'SUPPLY' | 'DEMAND'>('NONE');
   const customLinesRef = useRef<IPriceLine[]>([]);
   const [customDrawingCount, setCustomDrawingCount] = useState<number>(0);
+  const symbolRef = useRef<string>(symbol);
+
+  useEffect(() => {
+    symbolRef.current = symbol;
+  }, [symbol]);
 
   // Initialize chart
   useEffect(() => {
@@ -174,7 +182,10 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       if (param.point && seriesRef.current) {
         const rawPrice = seriesRef.current.coordinateToPrice(param.point.y);
         if (rawPrice === null) return;
-        const price = Math.round(rawPrice * 100) / 100;
+        const currentSpec = getAssetSpec(symbolRef.current);
+        const factor = Math.pow(10, currentSpec.digits);
+        const price = Math.round(rawPrice * factor) / factor;
+        const zoneOffset = 20 / currentSpec.pipScale;
 
         if (activeToolRef.current !== 'NONE') {
           if (activeToolRef.current === 'LINE') {
@@ -184,12 +195,12 @@ export const TradingChart: React.FC<TradingChartProps> = ({
               lineWidth: 2,
               lineStyle: LineStyle.Solid,
               axisLabelVisible: true,
-              title: `Level ${price.toFixed(2)}`,
+              title: `Level ${price.toFixed(currentSpec.digits)}`,
             });
             customLinesRef.current.push(line);
           } else if (activeToolRef.current === 'SUPPLY') {
             const top = seriesRef.current.createPriceLine({
-              price: price + 1.5,
+              price: price + zoneOffset,
               color: '#ef4444',
               lineWidth: 1,
               lineStyle: LineStyle.Dashed,
@@ -215,7 +226,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
               title: `Demand Zone`,
             });
             const bottom = seriesRef.current.createPriceLine({
-              price: price - 1.5,
+              price: price - zoneOffset,
               color: '#10b981',
               lineWidth: 1,
               lineStyle: LineStyle.Dashed,
@@ -411,6 +422,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     if (!seriesRef.current) return;
 
     const markers: SeriesMarker<UTCTimestamp>[] = [];
+    const currentSpec = getAssetSpec(symbol);
 
     // Active positions markers
     for (const pos of positions) {
@@ -419,7 +431,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         position: pos.type === 'BUY' ? 'belowBar' : 'aboveBar',
         color: pos.type === 'BUY' ? '#089981' : '#f23645',
         shape: pos.type === 'BUY' ? 'arrowUp' : 'arrowDown',
-        text: `${pos.type} ${pos.volume}L @ ${pos.entryPrice.toFixed(2)}`,
+        text: `${pos.type} ${pos.volume}L @ ${pos.entryPrice.toFixed(currentSpec.digits)}`,
       });
     }
 
@@ -453,7 +465,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     markers.sort((a, b) => (a.time as number) - (b.time as number));
 
     seriesRef.current.setMarkers(markers);
-  }, [positions, closedPositions]);
+  }, [positions, closedPositions, symbol]);
 
   // Render Price Lines for active open positions (Entry line, SL line, TP line)
   useEffect(() => {
@@ -464,6 +476,9 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       seriesRef.current.removePriceLine(line);
     }
     priceLinesRef.current = [];
+
+    const currentSpec = getAssetSpec(symbol);
+    const beThreshold = 0.5 / currentSpec.pipScale;
 
     // Draw active position lines
     for (const pos of positions) {
@@ -480,7 +495,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
       // Stop Loss Line
       if (pos.stopLoss) {
-        const isBE = Math.abs(pos.stopLoss - pos.entryPrice) < 0.001;
+        const isBE = Math.abs(pos.stopLoss - pos.entryPrice) < beThreshold;
         const slLine = seriesRef.current.createPriceLine({
           price: pos.stopLoss,
           color: isBE ? '#eab308' : '#f23645',

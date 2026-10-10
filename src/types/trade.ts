@@ -21,6 +21,7 @@ export interface Position {
   closeReason?: string;
   spread?: number;
   setupTag?: string;
+  symbol?: string;
 }
 
 export interface AccountState {

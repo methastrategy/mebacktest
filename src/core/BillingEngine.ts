@@ -1,4 +1,5 @@
 import { UserTier } from '../types/auth';
+import QRCode from 'qrcode';
 
 export interface PlanConfig {
   id: string;
@@ -203,8 +204,36 @@ export class BillingEngine {
   }
 
   /**
+   * Calculates standard EMVCo CRC-16 (CCITT-FALSE: poly 0x1021, init 0xFFFF)
+   */
+  public calculateCrc16(data: string): string {
+    let crc = 0xffff;
+    for (let i = 0; i < data.length; i++) {
+      crc ^= data.charCodeAt(i) << 8;
+      for (let j = 0; j < 8; j++) {
+        if ((crc & 0x8000) !== 0) {
+          crc = ((crc << 1) ^ 0x1021) & 0xffff;
+        } else {
+          crc = (crc << 1) & 0xffff;
+        }
+      }
+    }
+    return crc.toString(16).toUpperCase().padStart(4, '0');
+  }
+
+  /**
+   * Validate whether a PromptPay EMVCo string has a valid CRC-16 checksum
+   */
+  public verifyPromptPayChecksum(payload: string): boolean {
+    if (payload.length < 8) return false;
+    const body = payload.substring(0, payload.length - 4);
+    const expected = payload.substring(payload.length - 4).toUpperCase();
+    return this.calculateCrc16(body) === expected;
+  }
+
+  /**
    * Generate Thai PromptPay EMVCo Standard Payload String
-   * Supports standard Thai National ID / Mobile promptpay format
+   * Supports standard Thai National ID / Mobile promptpay format with valid CRC16 and real scannable QR
    */
   public generatePromptPayPayload(
     phoneNumberOrTaxId: string,
@@ -213,24 +242,31 @@ export class BillingEngine {
     // Generate clean unique reference ID
     const referenceId = `PAY-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    // Normalize phone number (e.g. 0812345678 -> 0066812345678)
+    // Normalize phone number (0812345678 -> 0066812345678) or National ID (13 digits)
     const cleanId = phoneNumberOrTaxId.replace(/[^0-9]/g, '');
+    let subtag = '01';
     let target = cleanId;
     if (cleanId.startsWith('0') && cleanId.length === 10) {
       target = `0066${cleanId.substring(1)}`;
+      subtag = '01';
+    } else if (cleanId.length === 13) {
+      subtag = '02';
     }
 
-    // EMVCo format segments
+    const tag29Value = `0016A000000677010111${subtag}13${target}`;
     const formattedAmount = amountTHB.toFixed(2);
-    const payload = `00020101021229370016A0000006770101110113${target}5802TH530376454${String(
-      formattedAmount.length
-    ).padStart(2, '0')}${formattedAmount}62${String(referenceId.length + 4).padStart(
-      2,
-      '0'
-    )}07${String(referenceId.length).padStart(2, '0')}${referenceId}6304`;
 
-    // SVG QR mockup representation with exact styling
-    const qrSvgData = this.generateSvgQrMock(payload, amountTHB, referenceId);
+    let raw = `00020101021229${String(tag29Value.length).padStart(2, '0')}${tag29Value}5802TH5303764`;
+    raw += `54${String(formattedAmount.length).padStart(2, '0')}${formattedAmount}`;
+    const sub62 = `07${String(referenceId.length).padStart(2, '0')}${referenceId}`;
+    raw += `62${String(sub62.length).padStart(2, '0')}${sub62}`;
+    raw += '6304';
+
+    const checksum = this.calculateCrc16(raw);
+    const payload = `${raw}${checksum}`;
+
+    // SVG QR matrix representation with exact styling
+    const qrSvgData = this.generateSvgQr(payload, amountTHB, referenceId);
 
     return {
       payload,
@@ -240,43 +276,27 @@ export class BillingEngine {
   }
 
   /**
-   * Generates high-fidelity SVG matrix pattern representing PromptPay QR Code
+   * Generates authentic, scannable QR Code SVG matrix
    */
-  private generateSvgQrMock(payload: string, amount: number, ref: string): string {
-    // Return SVG data URI with beautiful PromptPay header and crisp QR code pattern
-    const dots: string[] = [];
-    const size = 25;
-    for (let r = 0; r < size; r++) {
-      for (let c = 0; c < size; c++) {
-        // Corner markers
-        const isCorner1 = r < 7 && c < 7;
-        const isCorner2 = r < 7 && c >= size - 7;
-        const isCorner3 = r >= size - 7 && c < 7;
-        
-        let filled = false;
-        if (isCorner1 || isCorner2 || isCorner3) {
-          const localR = isCorner1 ? r : isCorner2 ? r : r - (size - 7);
-          const localC = isCorner1 ? c : isCorner2 ? c - (size - 7) : c;
-          if (localR === 0 || localR === 6 || localC === 0 || localC === 6) filled = true;
-          else if (localR >= 2 && localR <= 4 && localC >= 2 && localC <= 4) filled = true;
-        } else {
-          // pseudo-random deterministic fill based on payload hash
-          const hash = (payload.charCodeAt((r * size + c) % payload.length) + r * 13 + c * 7) % 10;
-          filled = hash > 4;
-        }
-
-        if (filled) {
-          dots.push(`<rect x="${c * 8 + 20}" y="${r * 8 + 20}" width="7.5" height="7.5" rx="1.5" fill="#0f172a" />`);
+  private generateSvgQr(payload: string, _amount: number, _ref: string): string {
+    try {
+      const qr = QRCode.create(payload, { errorCorrectionLevel: 'M' });
+      const size = qr.modules.size;
+      const dots: string[] = [];
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          if (qr.modules.get(r, c)) {
+            dots.push(`<rect x="${c}" y="${r}" width="1" height="1" fill="#0f172a" />`);
+          }
         }
       }
-    }
 
-    return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
-      <desc>Amount: ${amount} THB, Ref: ${ref}</desc>
-      <rect width="240" height="240" fill="%23ffffff" rx="16"/>
-      ${dots.join('')}
-      <circle cx="120" cy="120" r="14" fill="%231e3a8a"/>
-      <text x="120" y="124" font-family="sans-serif" font-weight="900" font-size="10" fill="%23ffffff" text-anchor="middle">PP</text>
-    </svg>`;
+      return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 ${size + 4} ${size + 4}" width="240" height="240">
+        <rect x="-2" y="-2" width="${size + 4}" height="${size + 4}" fill="%23ffffff" rx="1"/>
+        ${dots.join('')}
+      </svg>`;
+    } catch {
+      return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240"><rect width="240" height="240" fill="%23ffffff"/><text x="120" y="120" text-anchor="middle" font-size="12">PromptPay QR</text></svg>`;
+    }
   }
 }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Layers, X, TrendingUp, TrendingDown } from 'lucide-react';
 import { Position } from '../types/trade';
+import { getAssetSpec } from '../core/AssetSpecs';
 
 interface PositionListProps {
   positions: Position[];
@@ -32,8 +33,10 @@ export const PositionList: React.FC<PositionListProps> = ({
       ) : (
         <div className="flex-1 overflow-y-auto space-y-2 pr-1">
           {positions.map((pos) => {
+            const spec = getAssetSpec(pos.symbol || 'XAUUSD');
+            const beThreshold = 0.5 / spec.pipScale;
             const isProfit = pos.unrealizedPnL >= 0;
-            const isAtBE = pos.stopLoss !== undefined && Math.abs(pos.stopLoss - pos.entryPrice) < 0.001;
+            const isAtBE = pos.stopLoss !== undefined && Math.abs(pos.stopLoss - pos.entryPrice) < beThreshold;
             const canSetBE = isProfit && !isAtBE;
             const canPartial = pos.volume >= 0.02;
 
@@ -54,7 +57,7 @@ export const PositionList: React.FC<PositionListProps> = ({
                       {pos.type} {pos.volume}L
                     </span>
                     <span className="font-mono text-xs text-white">
-                      @{pos.entryPrice.toFixed(2)}
+                      @{pos.entryPrice.toFixed(spec.digits)}
                     </span>
                     {pos.setupTag && (
                       <span className="text-[10px] bg-indigo-950/60 border border-indigo-500/30 text-indigo-300 px-1.5 py-0.5 rounded truncate max-w-[100px]" title={pos.setupTag}>
@@ -116,8 +119,8 @@ export const PositionList: React.FC<PositionListProps> = ({
 
                 <div className="flex items-center justify-between text-xs pt-1 border-t border-tv-border/50">
                   <div className="text-[11px] text-tv-muted font-mono flex items-center gap-2">
-                    <span>SL: {pos.stopLoss ? pos.stopLoss.toFixed(2) : '-'}</span>
-                    <span>TP: {pos.takeProfit ? pos.takeProfit.toFixed(2) : '-'}</span>
+                    <span>SL: {pos.stopLoss ? pos.stopLoss.toFixed(spec.digits) : '-'}</span>
+                    <span>TP: {pos.takeProfit ? pos.takeProfit.toFixed(spec.digits) : '-'}</span>
                   </div>
 
                   <div className="flex items-center gap-1.5 font-mono">
