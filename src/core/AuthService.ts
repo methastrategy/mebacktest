@@ -1,4 +1,5 @@
 import { UserProfile, UserTier, OAuthProvider } from '../types/auth';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const STORAGE_KEY = 'mebacktest_auth_user';
 
@@ -8,9 +9,11 @@ export class AuthService {
   private static instance: AuthService;
   private currentUser: UserProfile | null = null;
   private listeners: Set<AuthListener> = new Set();
+  private isSupabaseInitialized: boolean = false;
 
   private constructor() {
     this.loadFromStorage();
+    this.initSupabaseListener();
   }
 
   public static getInstance(): AuthService {
@@ -20,9 +23,77 @@ export class AuthService {
     return AuthService.instance;
   }
 
+  private initSupabaseListener(): void {
+    if (this.isSupabaseInitialized || !isSupabaseConfigured || !supabase) return;
+    this.isSupabaseInitialized = true;
+
+    try {
+      // Check current Supabase session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          this.syncSupabaseUser(session.user);
+        }
+      });
+
+      // Listen to auth state transitions
+      supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+          this.syncSupabaseUser(session.user);
+        } else {
+          // If signed out on Supabase and current user was a Supabase user, reset
+          if (this.currentUser && this.currentUser.id.includes('-')) {
+            this.currentUser = null;
+            this.saveToStorage();
+          }
+        }
+      });
+    } catch (err) {
+      console.warn('Supabase auth listener initialization error:', err);
+    }
+  }
+
+  private async syncSupabaseUser(user: any): Promise<void> {
+    if (!supabase) return;
+
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      const email = user.email || 'trader@mebacktest.com';
+      const displayName =
+        profile?.display_name ||
+        user.user_metadata?.full_name ||
+        user.user_metadata?.display_name ||
+        email.split('@')[0];
+
+      const tier: UserTier = profile?.tier || 'free';
+      const creditBalance = profile?.credit_balance ?? 10;
+      const referralCode = profile?.referral_code || `MB-${user.id.substring(0, 6).toUpperCase()}`;
+
+      this.currentUser = {
+        id: user.id,
+        email,
+        displayName,
+        avatarUrl: profile?.avatar_url || user.user_metadata?.avatar_url,
+        tier,
+        creditBalance,
+        referralCode,
+        passExpiresAt: profile?.pass_expires_at ? new Date(profile.pass_expires_at).getTime() : undefined,
+        createdAt: new Date(user.created_at || Date.now()).getTime(),
+      };
+
+      this.saveToStorage();
+    } catch (err) {
+      console.warn('Error syncing Supabase user profile:', err);
+    }
+  }
+
   private loadFromStorage(): void {
     try {
-      const data = localStorage.getItem(STORAGE_KEY);
+      const data = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
       if (data) {
         this.currentUser = JSON.parse(data);
       } else {
@@ -45,10 +116,12 @@ export class AuthService {
 
   private saveToStorage(): void {
     try {
-      if (this.currentUser) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentUser));
-      } else {
-        localStorage.removeItem(STORAGE_KEY);
+      if (typeof localStorage !== 'undefined') {
+        if (this.currentUser) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.currentUser));
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+        }
       }
     } catch {
       // Ignore localStorage errors (e.g. incognito/test env)
@@ -88,6 +161,98 @@ export class AuthService {
     return false;
   }
 
+  // --- Real Supabase Cloud Auth Methods ---
+
+  public async signInWithSupabaseEmail(email: string, password: string): Promise<{ error: Error | null; user?: UserProfile }> {
+    if (!isSupabaseConfigured || !supabase) {
+      // Fallback to local sign in
+      const u = this.signInWithEmail(email);
+      return { error: null, user: u };
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      return { error };
+    }
+
+    if (data.user) {
+      await this.syncSupabaseUser(data.user);
+    }
+
+    return { error: null, user: this.currentUser || undefined };
+  }
+
+  public async signUpWithSupabaseEmail(
+    email: string,
+    password: string,
+    displayName?: string
+  ): Promise<{ error: Error | null; user?: UserProfile }> {
+    if (!isSupabaseConfigured || !supabase) {
+      const u = this.signInWithEmail(email, displayName);
+      return { error: null, user: u };
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          display_name: displayName || email.split('@')[0],
+        },
+      },
+    });
+
+    if (error) {
+      return { error };
+    }
+
+    if (data.user) {
+      await this.syncSupabaseUser(data.user);
+    }
+
+    return { error: null, user: this.currentUser || undefined };
+  }
+
+  public async signInWithSupabaseMagicLink(email: string): Promise<{ error: Error | null }> {
+    if (!isSupabaseConfigured || !supabase) {
+      this.signInWithEmail(email);
+      return { error: null };
+    }
+
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://mebacktest.com';
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: origin,
+      },
+    });
+
+    return { error };
+  }
+
+  public async signInWithSupabaseOAuth(provider: 'google' | 'discord' | 'github'): Promise<{ error: Error | null }> {
+    if (!isSupabaseConfigured || !supabase) {
+      this.signInWithOAuth(provider === 'github' ? 'google' : provider);
+      return { error: null };
+    }
+
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://mebacktest.com';
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: origin,
+      },
+    });
+
+    return { error };
+  }
+
+  // --- Local / Testing Synchronous Helpers ---
+
   public signInWithEmail(email: string, displayName?: string): UserProfile {
     const isProEmail = email.toLowerCase().includes('pro') || email.toLowerCase().includes('ftmo');
     const user: UserProfile = {
@@ -110,7 +275,7 @@ export class AuthService {
       email: `${provider}_trader@mebacktest.com`,
       displayName: `${provider.toUpperCase()} Trader`,
       avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${provider}`,
-      tier: 'pro_monthly', // OAuth users get complimentary pro monthly trial
+      tier: 'pro_monthly',
       creditBalance: 100,
       referralCode: `VIP-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
       createdAt: Date.now(),
@@ -121,6 +286,9 @@ export class AuthService {
   }
 
   public signOut(): void {
+    if (isSupabaseConfigured && supabase) {
+      supabase.auth.signOut().catch(() => {});
+    }
     this.currentUser = null;
     this.saveToStorage();
   }
@@ -132,14 +300,38 @@ export class AuthService {
       this.currentUser.passExpiresAt = Date.now() + durationHours * 3600 * 1000;
     }
     this.saveToStorage();
+
+    // Sync to Supabase profile if connected
+    if (isSupabaseConfigured && supabase && this.currentUser.id.includes('-')) {
+      supabase
+        .from('profiles')
+        .update({
+          tier,
+          pass_expires_at: this.currentUser.passExpiresAt ? new Date(this.currentUser.passExpiresAt).toISOString() : null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', this.currentUser.id)
+        .then();
+    }
   }
 
   public consumeCredit(): boolean {
     if (!this.currentUser) return false;
-    if (this.isPro()) return true; // Pro users have unlimited credits
+    if (this.isPro()) return true;
     if (this.currentUser.creditBalance > 0) {
       this.currentUser.creditBalance -= 1;
       this.saveToStorage();
+
+      if (isSupabaseConfigured && supabase && this.currentUser.id.includes('-')) {
+        supabase
+          .from('profiles')
+          .update({
+            credit_balance: this.currentUser.creditBalance,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', this.currentUser.id)
+          .then();
+      }
       return true;
     }
     return false;
@@ -149,5 +341,16 @@ export class AuthService {
     if (!this.currentUser) return;
     this.currentUser.creditBalance += amount;
     this.saveToStorage();
+
+    if (isSupabaseConfigured && supabase && this.currentUser.id.includes('-')) {
+      supabase
+        .from('profiles')
+        .update({
+          credit_balance: this.currentUser.creditBalance,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', this.currentUser.id)
+        .then();
+    }
   }
 }

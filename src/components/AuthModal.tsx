@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { X, Mail, Shield, LogOut, Sparkles } from 'lucide-react';
+import { X, Mail, Shield, LogOut, Sparkles, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { AuthService } from '../core/AuthService';
 import { UserProfile, OAuthProvider } from '../types/auth';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -18,22 +19,69 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   const authService = AuthService.getInstance();
 
   if (!isOpen) return null;
 
-  const handleEmailSignIn = (e: React.FormEvent) => {
+  const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
-    const user = authService.signInWithEmail(email.trim(), displayName.trim() || undefined);
-    onUserChanged(user);
-    onClose();
+
+    setIsLoading(true);
+    setStatusMessage(null);
+
+    try {
+      if (isSupabaseConfigured) {
+        // Send Supabase Magic Link
+        const { error } = await authService.signInWithSupabaseMagicLink(email.trim());
+        if (error) {
+          // If magic link rate limited or failed, fallback to local sign in
+          setStatusMessage({ type: 'error', text: error.message });
+          const user = authService.signInWithEmail(email.trim(), displayName.trim() || undefined);
+          onUserChanged(user);
+        } else {
+          setStatusMessage({
+            type: 'success',
+            text: `Magic sign-in link sent to ${email.trim()}! Please check your inbox.`,
+          });
+          const user = authService.signInWithEmail(email.trim(), displayName.trim() || undefined);
+          onUserChanged(user);
+        }
+      } else {
+        const user = authService.signInWithEmail(email.trim(), displayName.trim() || undefined);
+        onUserChanged(user);
+        onClose();
+      }
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: err.message || 'Authentication failed' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleOAuthSignIn = (provider: OAuthProvider) => {
-    const user = authService.signInWithOAuth(provider);
-    onUserChanged(user);
-    onClose();
+  const handleOAuthSignIn = async (provider: OAuthProvider) => {
+    setIsLoading(true);
+    setStatusMessage(null);
+
+    try {
+      if (isSupabaseConfigured && (provider === 'google' || provider === 'discord')) {
+        await authService.signInWithSupabaseOAuth(provider);
+      } else {
+        const user = authService.signInWithOAuth(provider);
+        onUserChanged(user);
+        onClose();
+      }
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: err.message || 'OAuth sign-in failed' });
+      const user = authService.signInWithOAuth(provider);
+      onUserChanged(user);
+      onClose();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSignOut = () => {
@@ -67,8 +115,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               MB
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Trader Account & Cloud Sync</h2>
-              <p className="text-xs text-tv-muted">Sign in to sync your journals across all devices</p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-white">Trader Account</h2>
+                {isSupabaseConfigured && (
+                  <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Supabase Cloud
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-tv-muted">Sync your journals & replay sessions across all devices</p>
             </div>
           </div>
           <button
@@ -78,6 +134,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <X size={18} />
           </button>
         </div>
+
+        {/* Feedback Message */}
+        {statusMessage && (
+          <div
+            className={`mt-4 p-3 rounded-xl flex items-start gap-2.5 text-xs ${
+              statusMessage.type === 'success'
+                ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
+                : 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
+            }`}
+          >
+            {statusMessage.type === 'success' ? (
+              <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-emerald-400" />
+            ) : (
+              <AlertCircle size={16} className="shrink-0 mt-0.5 text-rose-400" />
+            )}
+            <span>{statusMessage.text}</span>
+          </div>
+        )}
 
         {/* Current User Card if Logged In */}
         {currentUser && (
@@ -102,6 +176,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <p className="text-xs text-tv-muted">{currentUser.email}</p>
                 <p className="text-[11px] text-tv-text/70 mt-0.5">
                   Credits: <strong className="text-amber-400">{currentUser.creditBalance}</strong>
+                  {currentUser.referralCode && (
+                    <span className="ml-2 text-tv-muted">Ref: {currentUser.referralCode}</span>
+                  )}
                 </p>
               </div>
             </div>
@@ -119,7 +196,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="mt-5 space-y-2.5">
           <button
             onClick={() => handleOAuthSignIn('google')}
-            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl bg-white hover:bg-gray-100 text-gray-900 font-semibold text-xs shadow-md transition-all active:scale-[0.98]"
+            disabled={isLoading}
+            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl bg-white hover:bg-gray-100 disabled:opacity-50 text-gray-900 font-semibold text-xs shadow-md transition-all active:scale-[0.98]"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path
@@ -144,7 +222,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           <button
             onClick={() => handleOAuthSignIn('discord')}
-            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold text-xs shadow-md transition-all active:scale-[0.98]"
+            disabled={isLoading}
+            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-50 text-white font-semibold text-xs shadow-md transition-all active:scale-[0.98]"
           >
             <Shield size={16} />
             Continue with Discord (Trader Guild)
@@ -193,9 +272,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           <button
             type="submit"
-            className="w-full py-2.5 rounded-xl bg-tv-blue hover:bg-blue-600 text-white font-semibold text-xs transition-colors shadow-md"
+            disabled={isLoading}
+            className="w-full py-2.5 rounded-xl bg-tv-blue hover:bg-blue-600 disabled:opacity-50 text-white font-semibold text-xs transition-colors shadow-md flex items-center justify-center gap-2"
           >
-            Sign In / Register
+            {isLoading && <Loader2 size={14} className="animate-spin" />}
+            {isSupabaseConfigured ? 'Sign In / Send Magic Link' : 'Sign In / Register'}
           </button>
         </form>
 

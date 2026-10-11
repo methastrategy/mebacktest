@@ -133,27 +133,31 @@ export const App: React.FC = () => {
     isFirstMountRef.current = false;
     const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
     const shareParam = params?.get('share');
-    if (shareParam) {
-      const sess = CloudSessionService.getInstance().getSessionById(shareParam);
-      if (sess) {
-        isRestoringSessionRef.current = true;
-        setIsReadOnlySession(true);
-        setSharedSessionTitle(sess.title);
-        tradingEngineRef.current.restoreState(sess.accountState, sess.symbol);
-        propFirmEngineRef.current.restoreState(sess.propFirmState);
-        setAccountState(sess.accountState);
-        setPropFirmState(sess.propFirmState);
-        setCurrentSymbol(sess.symbol);
-        setTimeframe(sess.timeframe);
-        prevSymbolRef.current = sess.symbol;
-        loadDataset(sess.symbol, sess.timeframe);
-        return;
+    const initSession = async () => {
+      if (shareParam) {
+        const sess = await CloudSessionService.getInstance().fetchRemoteSessionBySlug(shareParam);
+        if (sess) {
+          isRestoringSessionRef.current = true;
+          setIsReadOnlySession(true);
+          setSharedSessionTitle(sess.title);
+          tradingEngineRef.current.restoreState(sess.accountState, sess.symbol);
+          propFirmEngineRef.current.restoreState(sess.propFirmState);
+          setAccountState(sess.accountState);
+          setPropFirmState(sess.propFirmState);
+          setCurrentSymbol(sess.symbol);
+          setTimeframe(sess.timeframe);
+          prevSymbolRef.current = sess.symbol;
+          loadDataset(sess.symbol, sess.timeframe);
+          return;
+        }
       }
-    }
 
-    const spec = getAssetSpec(currentSymbol);
-    setSpreadPips(spec.defaultSpread);
-    loadDataset(currentSymbol, timeframe);
+      const spec = getAssetSpec(currentSymbol);
+      setSpreadPips(spec.defaultSpread);
+      loadDataset(currentSymbol, timeframe);
+    };
+
+    initSession();
   }, []); // Run on mount only
 
   // Symbol Change Handler (does NOT trigger on timeframe change)

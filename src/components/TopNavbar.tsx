@@ -17,6 +17,7 @@ import {
 import { ASSET_SPECS, AssetSpec } from '../core/AssetSpecs';
 import { UserProfile } from '../types/auth';
 import { BillingEngine } from '../core/BillingEngine';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 interface TopNavbarProps {
   currentSymbol: string;
@@ -343,12 +344,18 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         <button
           onClick={onOpenAuth}
           title={currentUser ? `Logged in as ${currentUser.displayName}` : 'Sign In'}
-          className="w-7 h-7 rounded-full bg-tv-bg hover:bg-tv-border border border-tv-border flex items-center justify-center text-xs font-bold text-white transition-colors ml-0.5"
+          className="relative w-7 h-7 rounded-full bg-tv-bg hover:bg-tv-border border border-tv-border flex items-center justify-center text-xs font-bold text-white transition-colors ml-0.5"
         >
           {currentUser ? (
             currentUser.displayName.charAt(0).toUpperCase()
           ) : (
             <User size={13} className="text-tv-muted" />
+          )}
+          {isSupabaseConfigured && (
+            <span
+              className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 border border-[#0d111a]"
+              title="Supabase Cloud Live"
+            />
           )}
         </button>
       </div>

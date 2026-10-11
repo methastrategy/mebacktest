@@ -35,6 +35,11 @@ export const CloudSessionsModal: React.FC<CloudSessionsModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setSessions(cloudService.getSavedSessions());
+      cloudService.fetchRemoteSessions().then((remoteList) => {
+        if (remoteList && remoteList.length > 0) {
+          setSessions(remoteList);
+        }
+      });
     }
   }, [isOpen]);
 
