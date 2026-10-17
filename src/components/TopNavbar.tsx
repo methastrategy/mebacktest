@@ -13,6 +13,8 @@ import {
   MessageSquare,
   Globe,
   User,
+  Menu,
+  X,
 } from 'lucide-react';
 import { ASSET_SPECS, AssetSpec } from '../core/AssetSpecs';
 import { UserProfile } from '../types/auth';
@@ -64,6 +66,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSymbolDropdownOpen, setIsSymbolDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [symbolFilter, setSymbolFilter] = useState('');
 
   const billingEngine = BillingEngine.getInstance();
@@ -238,7 +241,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           className="hidden"
         />
 
-        {/* Home / Terminal Toggle */}
+        {/* Desktop-only: Home / Terminal Toggle */}
         <button
           onClick={onToggleLanding}
           title={isLandingActive ? 'Back to Trading Terminal' : 'View Commercial Landing Page'}
@@ -248,37 +251,37 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           <span>{isLandingActive ? 'Terminal' : 'Home'}</span>
         </button>
 
-        {/* Cloud Sessions */}
+        {/* Desktop-only: Cloud Sessions */}
         <button
           onClick={onOpenCloudSessions}
           title="Manage & Share Cloud Sessions"
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-tv-bg hover:bg-tv-border border border-tv-border text-xs font-medium text-tv-text hover:text-white transition-colors"
+          className="hidden lg:flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-tv-bg hover:bg-tv-border border border-tv-border text-xs font-medium text-tv-text hover:text-white transition-colors"
         >
           <Cloud size={13} className="text-tv-blue" />
-          <span className="hidden sm:inline">Cloud</span>
+          <span>Cloud</span>
         </button>
 
-        {/* Share P&L Card */}
+        {/* Desktop-only: Share P&L Card */}
         <button
           onClick={onOpenSocialShare}
           title="Export high-fidelity P&L card for social media"
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-tv-bg hover:bg-tv-border border border-tv-border text-xs font-medium text-tv-text hover:text-white transition-colors"
+          className="hidden lg:flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-tv-bg hover:bg-tv-border border border-tv-border text-xs font-medium text-tv-text hover:text-white transition-colors"
         >
           <Share2 size={13} className="text-emerald-400" />
-          <span className="hidden md:inline">Share P&L</span>
+          <span className="hidden xl:inline">Share P&L</span>
         </button>
 
-        {/* Journal Stats */}
+        {/* Desktop-only: Journal Stats */}
         <button
           onClick={onOpenPerformance}
           title="Strategy Breakdown & Performance Journal"
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-tv-bg hover:bg-tv-border border border-tv-border text-xs font-medium text-tv-text hover:text-white transition-colors"
+          className="hidden lg:flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-tv-bg hover:bg-tv-border border border-tv-border text-xs font-medium text-tv-text hover:text-white transition-colors"
         >
           <BarChart2 size={13} className="text-tv-blue" />
-          <span className="hidden sm:inline">Journal</span>
+          <span>Journal</span>
         </button>
 
-        {/* Affiliate 30% Perk */}
+        {/* Desktop-only: Affiliate 30% Perk */}
         <button
           onClick={onOpenAffiliate}
           title="30% RevShare Partner Program"
@@ -288,14 +291,15 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           <span>30% Affiliate</span>
         </button>
 
-        {/* Upgrade Pro or Pro Badge */}
+        {/* Upgrade Pro or Pro Badge (Always visible on all screens) */}
         {!isPro ? (
           <button
             onClick={() => onOpenUpgrade('pro_monthly')}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 text-black text-xs font-extrabold shadow-md transition-all active:scale-95 animate-pulse"
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 text-black text-[11px] sm:text-xs font-extrabold shadow-md transition-all active:scale-95 animate-pulse"
           >
-            <Crown size={13} className="fill-black" />
-            <span>Upgrade Pro</span>
+            <Crown size={12} className="fill-black" />
+            <span className="hidden xs:inline sm:inline">Upgrade Pro</span>
+            <span className="xs:hidden sm:hidden">PRO</span>
           </button>
         ) : (
           <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-extrabold">
@@ -304,38 +308,38 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           </div>
         )}
 
-        {/* Upload Custom CSV */}
+        {/* Desktop-only: Upload Custom CSV */}
         <button
           onClick={() => fileInputRef.current?.click()}
           title="Upload your own MT5 or TradingView CSV file"
-          className="p-1.5 text-tv-muted hover:text-white hover:bg-tv-border/50 rounded-lg transition-colors hidden sm:block"
+          className="p-1.5 text-tv-muted hover:text-white hover:bg-tv-border/50 rounded-lg transition-colors hidden lg:block"
         >
           <Upload size={14} />
         </button>
 
-        {/* Reset Session */}
+        {/* Desktop-only: Reset Session */}
         <button
           onClick={onResetSession}
           title="Reset account balance and positions"
-          className="p-1.5 text-tv-muted hover:text-white hover:bg-tv-border/50 rounded-lg transition-colors"
+          className="p-1.5 text-tv-muted hover:text-white hover:bg-tv-border/50 rounded-lg transition-colors hidden lg:block"
         >
           <RefreshCw size={14} />
         </button>
 
-        {/* Feedback Widget */}
+        {/* Desktop-only: Feedback Widget */}
         <button
           onClick={onOpenFeedback}
           title="Submit Feedback & Bug Reports"
-          className="p-1.5 text-tv-muted hover:text-white hover:bg-tv-border/50 rounded-lg transition-colors hidden sm:block"
+          className="p-1.5 text-tv-muted hover:text-white hover:bg-tv-border/50 rounded-lg transition-colors hidden lg:block"
         >
           <MessageSquare size={14} />
         </button>
 
-        {/* Help Shortcuts */}
+        {/* Desktop-only: Help Shortcuts */}
         <button
           onClick={onOpenHelp}
           title="Help & Shortcuts"
-          className="p-1.5 text-tv-muted hover:text-white hover:bg-tv-border/50 rounded-lg transition-colors"
+          className="p-1.5 text-tv-muted hover:text-white hover:bg-tv-border/50 rounded-lg transition-colors hidden lg:block"
         >
           <HelpCircle size={15} />
         </button>
@@ -358,7 +362,156 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
             />
           )}
         </button>
+
+        {/* Mobile Hamburger Menu Toggle (< lg) */}
+        <button
+          onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+          className="lg:hidden p-1.5 text-tv-text hover:text-white hover:bg-tv-border/50 rounded-lg transition-colors border border-tv-border ml-0.5"
+          title="Open Menu"
+        >
+          {isMobileMenuOpen ? <X size={15} /> : <Menu size={15} />}
+        </button>
       </div>
+
+      {/* Mobile Drawer Dropdown Menu */}
+      {isMobileMenuOpen && (
+        <div className="lg:hidden absolute top-12 right-2 w-72 bg-[#0c1017] border border-tv-border rounded-2xl shadow-2xl p-3 z-50 flex flex-col gap-1.5 animate-fade-in backdrop-blur-xl">
+          <div className="flex items-center justify-between pb-2 border-b border-white/10 mb-1">
+            <span className="text-xs font-bold text-white uppercase tracking-wider">Features & Tools</span>
+            <button
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="text-tv-muted hover:text-white p-1"
+            >
+              <X size={14} />
+            </button>
+          </div>
+
+          <button
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              onOpenCloudSessions();
+            }}
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-left hover:bg-white/5 transition-colors text-white"
+          >
+            <Cloud size={16} className="text-tv-blue" />
+            <div className="flex flex-col">
+              <span className="font-semibold">Cloud Sessions</span>
+              <span className="text-[10px] text-tv-muted">Save & share replay links</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              onOpenSocialShare();
+            }}
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-left hover:bg-white/5 transition-colors text-white"
+          >
+            <Share2 size={16} className="text-emerald-400" />
+            <div className="flex flex-col">
+              <span className="font-semibold">Share P&L Card</span>
+              <span className="text-[10px] text-tv-muted">Instagram & Twitter stats</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              onOpenPerformance();
+            }}
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-left hover:bg-white/5 transition-colors text-white"
+          >
+            <BarChart2 size={16} className="text-tv-blue" />
+            <div className="flex flex-col">
+              <span className="font-semibold">Strategy Journal</span>
+              <span className="text-[10px] text-tv-muted">Win rate & equity curves</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              onOpenAffiliate();
+            }}
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-left hover:bg-white/5 transition-colors text-amber-300"
+          >
+            <Gift size={16} className="text-amber-400" />
+            <div className="flex flex-col">
+              <span className="font-semibold">30% Affiliate Program</span>
+              <span className="text-[10px] text-amber-400/80">Earn recurring revenue</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              fileInputRef.current?.click();
+            }}
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-left hover:bg-white/5 transition-colors text-white"
+          >
+            <Upload size={16} className="text-purple-400" />
+            <div className="flex flex-col">
+              <span className="font-semibold">Upload Custom CSV</span>
+              <span className="text-[10px] text-tv-muted">Load MT5 / TV bar data</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              onResetSession();
+            }}
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-left hover:bg-white/5 transition-colors text-white"
+          >
+            <RefreshCw size={16} className="text-red-400" />
+            <div className="flex flex-col">
+              <span className="font-semibold">Reset Session</span>
+              <span className="text-[10px] text-tv-muted">Clear balance & trade history</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              onOpenFeedback();
+            }}
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-left hover:bg-white/5 transition-colors text-white"
+          >
+            <MessageSquare size={16} className="text-yellow-400" />
+            <div className="flex flex-col">
+              <span className="font-semibold">Feedback & Bug Report</span>
+              <span className="text-[10px] text-tv-muted">Direct suggestions</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              onOpenHelp();
+            }}
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-left hover:bg-white/5 transition-colors text-white"
+          >
+            <HelpCircle size={16} className="text-tv-muted" />
+            <div className="flex flex-col">
+              <span className="font-semibold">Help & Shortcuts</span>
+              <span className="text-[10px] text-tv-muted">Hotkeys guide</span>
+            </div>
+          </button>
+
+          <div className="border-t border-white/10 pt-1.5 mt-1">
+            <button
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                onToggleLanding();
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold bg-white/5 hover:bg-white/10 text-white transition-colors"
+            >
+              <Globe size={14} />
+              <span>{isLandingActive ? 'Back to Terminal' : 'View Landing Page'}</span>
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

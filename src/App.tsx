@@ -29,7 +29,7 @@ import { SocialShareModal } from './components/SocialShareModal';
 import { AffiliateModal } from './components/AffiliateModal';
 import { FeedbackModal } from './components/FeedbackModal';
 import { LandingPage } from './components/LandingPage';
-import { Eye, LogOut } from 'lucide-react';
+import { Eye, LogOut, Activity, Zap, Layers, ShieldCheck, Sparkles, X } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [currentSymbol, setCurrentSymbol] = useState<string>('XAUUSD');
@@ -40,6 +40,17 @@ export const App: React.FC = () => {
   const [isBlindMode, setIsBlindMode] = useState<boolean>(false);
   const [clickedChartPrice, setClickedChartPrice] = useState<number | undefined>();
   const [spreadPips, setSpreadPips] = useState<number>(25);
+
+  // Mobile Tab Navigation ('chart' | 'trade' | 'positions' | 'account')
+  const [mobileTab, setMobileTab] = useState<'chart' | 'trade' | 'positions' | 'account'>('chart');
+
+  // Dismissible First-Time User Onboarding Guide
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('mebacktest_guide_dismissed') !== 'true';
+    }
+    return false;
+  });
 
   // Prop Firm Mode State
   const [isPropModeEnabled, setIsPropModeEnabled] = useState<boolean>(false);
@@ -516,10 +527,36 @@ export const App: React.FC = () => {
         isLoading={isLoading}
       />
 
+      {/* First-Time User Quick Onboarding Banner */}
+      {showOnboarding && (
+        <div className="bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-950 border-b border-indigo-500/30 px-3 py-1.5 flex items-center justify-between text-xs text-slate-200 z-30 shrink-0 select-none">
+          <div className="flex items-center gap-2 overflow-hidden text-ellipsis">
+            <Sparkles size={14} className="text-amber-400 shrink-0" />
+            <span className="truncate">
+              <strong>ยินดีต้อนรับสู่ MeBacktest!</strong> กด <strong>Step Bar</strong> (หรือ Spacebar) เพื่อเลื่อนแท่งเทียน • กด <strong>Trade</strong> เพื่อเปิดออเดอร์ • เปิด <strong>Prop Mode</strong> เพื่อฝึกสอบ FTMO
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              setShowOnboarding(false);
+              localStorage.setItem('mebacktest_guide_dismissed', 'true');
+            }}
+            className="text-slate-400 hover:text-white ml-2 shrink-0 px-2 py-0.5 rounded-lg hover:bg-white/10 text-[11px] flex items-center gap-1 transition-colors"
+          >
+            <span>เข้าใจแล้ว</span>
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
       {/* Main Trading Workstation */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* Left / Center Area: Candlestick Chart */}
-        <div className="flex-1 relative flex flex-col h-full overflow-hidden">
+        <div
+          className={`flex-1 relative flex-col h-full overflow-hidden ${
+            mobileTab === 'chart' ? 'flex' : 'hidden lg:flex'
+          }`}
+        >
           {/* Subtle Free Tier Watermark */}
           {!isPro && (
             <ChartWatermark
@@ -530,8 +567,8 @@ export const App: React.FC = () => {
             />
           )}
 
-          {/* Prop Firm Challenge HUD Ribbon (Top Right) */}
-          <div className="absolute top-3 right-4 z-20">
+          {/* Prop Firm Challenge HUD Ribbon (Top Center on Desktop - Never overlaps Chart Controls!) */}
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-auto max-w-[95vw]">
             <PropFirmHUD
               isEnabled={isPropModeEnabled}
               onToggleEnabled={() => setIsPropModeEnabled((prev) => !prev)}
@@ -540,6 +577,16 @@ export const App: React.FC = () => {
               onResetChallenge={handleResetChallenge}
             />
           </div>
+
+          {/* Quick Trade Floating Button on Mobile Chart (< lg) */}
+          <button
+            onClick={() => setMobileTab('trade')}
+            className="lg:hidden absolute top-14 right-3 z-20 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-extrabold text-xs shadow-xl flex items-center gap-1.5 active:scale-95 transition-transform"
+            title="Open Order Entry Panel"
+          >
+            <Zap size={13} className="fill-black" />
+            <span>⚡ Trade</span>
+          </button>
 
           <TradingChart
             bars={visibleBars}
@@ -552,7 +599,7 @@ export const App: React.FC = () => {
           />
 
           {/* Floating Bottom Replay Controls */}
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
             <ReplayControls
               isPlaying={isPlaying}
               onTogglePlay={handleTogglePlay}
@@ -571,28 +618,114 @@ export const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Sidebar: Trade Execution & Positions */}
-        <div className="w-80 md:w-96 border-l border-tv-border bg-tv-surface/40 flex flex-col p-3 gap-3 overflow-y-auto z-10">
-          <AccountSummary account={accountState} />
+        {/* Right Sidebar: Trade Execution & Positions (Responsive on Mobile) */}
+        <div
+          className={`border-l border-tv-border bg-tv-surface/40 flex-col p-3 gap-3 overflow-y-auto z-10 ${
+            mobileTab !== 'chart' ? 'flex flex-1 w-full' : 'hidden lg:flex w-80 md:w-96'
+          }`}
+        >
+          {/* On Mobile: Render tab-specific view; On Desktop: Render full stack */}
+          {(mobileTab === 'trade' || mobileTab === 'account' || typeof window === 'undefined' || window.innerWidth >= 1024) && (
+            <AccountSummary account={accountState} />
+          )}
 
-          <OrderEntryPanel
-            currentPrice={currentBar?.close || 0}
-            onPlaceOrder={handlePlaceOrder}
-            clickedPrice={clickedChartPrice}
-            spreadPips={spreadPips}
-            onChangeSpread={handleChangeSpread}
-            symbol={currentSymbol}
-            isReadOnly={isReadOnlySession}
-          />
+          {(mobileTab === 'trade' || typeof window === 'undefined' || window.innerWidth >= 1024) && (
+            <OrderEntryPanel
+              currentPrice={currentBar?.close || 0}
+              onPlaceOrder={(params) => {
+                handlePlaceOrder(params);
+                if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                  setMobileTab('positions');
+                }
+              }}
+              clickedPrice={clickedChartPrice}
+              spreadPips={spreadPips}
+              onChangeSpread={handleChangeSpread}
+              symbol={currentSymbol}
+              isReadOnly={isReadOnlySession}
+            />
+          )}
 
-          <PositionList
-            positions={accountState.openPositions}
-            onClosePosition={handleClosePosition}
-            onBreakEven={handleMoveToBreakEven}
-            onPartialClose={handlePartialClose}
-          />
+          {(mobileTab === 'positions' || typeof window === 'undefined' || window.innerWidth >= 1024) && (
+            <PositionList
+              positions={accountState.openPositions}
+              onClosePosition={handleClosePosition}
+              onBreakEven={handleMoveToBreakEven}
+              onPartialClose={handlePartialClose}
+            />
+          )}
+
+          {mobileTab === 'account' && (
+            <div className="lg:hidden flex flex-col gap-3 mt-2">
+              <div className="bg-tv-surface border border-tv-border rounded-xl p-3">
+                <span className="text-xs font-bold text-white block mb-2">FTMO Prop Firm Mode</span>
+                <PropFirmHUD
+                  isEnabled={isPropModeEnabled}
+                  onToggleEnabled={() => setIsPropModeEnabled((prev) => !prev)}
+                  state={propFirmState}
+                  onSelectAccountSize={handleSelectAccountSize}
+                  onResetChallenge={handleResetChallenge}
+                />
+              </div>
+
+              <button
+                onClick={handleResetSession}
+                className="w-full py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold transition-colors"
+              >
+                Reset Balance & History
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Mobile Bottom Navigation Bar (< lg) */}
+      <nav className="lg:hidden h-14 bg-[#0a0d14] border-t border-tv-border flex items-center justify-around z-40 select-none px-2 shrink-0">
+        <button
+          onClick={() => setMobileTab('chart')}
+          className={`flex-1 flex flex-col items-center justify-center py-1 transition-colors ${
+            mobileTab === 'chart' ? 'text-amber-400 font-bold' : 'text-tv-muted hover:text-white'
+          }`}
+        >
+          <Activity size={18} />
+          <span className="text-[10px] mt-0.5">Chart</span>
+        </button>
+
+        <button
+          onClick={() => setMobileTab('trade')}
+          className={`flex-1 flex flex-col items-center justify-center py-1 transition-colors ${
+            mobileTab === 'trade' ? 'text-amber-400 font-bold' : 'text-tv-muted hover:text-white'
+          }`}
+        >
+          <Zap size={18} />
+          <span className="text-[10px] mt-0.5">Trade</span>
+        </button>
+
+        <button
+          onClick={() => setMobileTab('positions')}
+          className={`flex-1 flex flex-col items-center justify-center py-1 transition-colors relative ${
+            mobileTab === 'positions' ? 'text-amber-400 font-bold' : 'text-tv-muted hover:text-white'
+          }`}
+        >
+          <Layers size={18} />
+          <span className="text-[10px] mt-0.5">Orders</span>
+          {accountState.openPositions.length > 0 && (
+            <span className="absolute top-1 right-5 w-4 h-4 rounded-full bg-amber-500 text-black font-extrabold text-[9px] flex items-center justify-center">
+              {accountState.openPositions.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setMobileTab('account')}
+          className={`flex-1 flex flex-col items-center justify-center py-1 transition-colors ${
+            mobileTab === 'account' ? 'text-amber-400 font-bold' : 'text-tv-muted hover:text-white'
+          }`}
+        >
+          <ShieldCheck size={18} />
+          <span className="text-[10px] mt-0.5">Account</span>
+        </button>
+      </nav>
 
       {/* Modals & Dialogs */}
       <PerformanceModal

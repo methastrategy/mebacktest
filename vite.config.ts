@@ -13,4 +13,16 @@ export default defineConfig({
   resolve: {
     preserveSymlinks: true,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'charts': ['lightweight-charts'],
+          'icons': ['lucide-react'],
+          'vendor': ['react', 'react-dom'],
+          'supabase': ['@supabase/supabase-js'],
+        },
+      },
+    },
+  },
 });

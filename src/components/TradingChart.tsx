@@ -622,27 +622,35 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
       {/* Floating Status Badge on Top-Left */}
       <div className="absolute top-3 left-4 flex items-center gap-2 pointer-events-none z-10">
-        <div className="bg-tv-surface/90 backdrop-blur border border-tv-border px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-lg text-xs">
-          <span className="font-bold text-amber-400">XAU/USD (Gold)</span>
+        <div className="bg-tv-surface/90 backdrop-blur border border-tv-border px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 sm:gap-2 shadow-lg text-xs">
+          <span className="font-bold text-amber-400">{symbol}</span>
           <span className="text-tv-muted">|</span>
           {currentBar ? (
-            <div className="flex items-center gap-2 font-mono">
-              <span>O: <strong className="text-tv-text">{currentBar.open.toFixed(2)}</strong></span>
-              <span>H: <strong className="text-tv-green">{currentBar.high.toFixed(2)}</strong></span>
-              <span>L: <strong className="text-tv-red">{currentBar.low.toFixed(2)}</strong></span>
-              <span>C: <strong className={currentBar.close >= currentBar.open ? 'text-tv-green' : 'text-tv-red'}>
-                {currentBar.close.toFixed(2)}
-              </strong></span>
-            </div>
+            <>
+              <div className="hidden md:flex items-center gap-2 font-mono">
+                <span>O: <strong className="text-tv-text">{currentBar.open.toFixed(getAssetSpec(symbol).digits)}</strong></span>
+                <span>H: <strong className="text-tv-green">{currentBar.high.toFixed(getAssetSpec(symbol).digits)}</strong></span>
+                <span>L: <strong className="text-tv-red">{currentBar.low.toFixed(getAssetSpec(symbol).digits)}</strong></span>
+                <span>C: <strong className={currentBar.close >= currentBar.open ? 'text-tv-green' : 'text-tv-red'}>
+                  {currentBar.close.toFixed(getAssetSpec(symbol).digits)}
+                </strong></span>
+              </div>
+              <div className="md:hidden font-mono">
+                <strong className={currentBar.close >= currentBar.open ? 'text-tv-green' : 'text-tv-red'}>
+                  {currentBar.close.toFixed(getAssetSpec(symbol).digits)}
+                </strong>
+              </div>
+            </>
           ) : (
-            <span className="text-tv-muted">Loading candle data...</span>
+            <span className="text-tv-muted text-[11px]">Loading...</span>
           )}
         </div>
 
         {isBlindMode && (
-          <div className="bg-purple-900/60 border border-purple-500/50 text-purple-200 px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 backdrop-blur shadow-md">
-            <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
-            BLIND MODE (Date Hidden)
+          <div className="bg-purple-900/60 border border-purple-500/50 text-purple-200 px-2 sm:px-2.5 py-1 rounded-md text-[11px] sm:text-xs font-medium flex items-center gap-1 backdrop-blur shadow-md">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+            <span className="hidden sm:inline">BLIND MODE</span>
+            <span className="sm:hidden">BLIND</span>
           </div>
         )}
       </div>
@@ -687,8 +695,8 @@ export const TradingChart: React.FC<TradingChartProps> = ({
           </button>
         </div>
 
-        {/* Shift / Right Margin Offset Control */}
-        <div className="bg-tv-surface/90 backdrop-blur border border-tv-border px-2 py-1 rounded-lg flex items-center gap-1.5 shadow-lg text-xs">
+        {/* Shift / Right Margin Offset Control (Hidden on small mobile) */}
+        <div className="hidden sm:flex bg-tv-surface/90 backdrop-blur border border-tv-border px-2 py-1 rounded-lg items-center gap-1.5 shadow-lg text-xs">
           <span className="text-[11px] font-semibold text-tv-muted mr-0.5">Shift:</span>
           <div className="flex items-center gap-1">
             {[0, 15, 25, 45].map((offset) => (
@@ -730,7 +738,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
               chartRef.current.timeScale().scrollToRealTime();
             }
           }}
-          className={`px-2.5 py-1 rounded-lg text-xs font-semibold border backdrop-blur shadow-lg transition-all flex items-center gap-1.5 ${
+          className={`px-2 sm:px-2.5 py-1 rounded-lg text-xs font-semibold border backdrop-blur shadow-lg transition-all flex items-center gap-1.5 ${
             autoScroll
               ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/40'
               : 'bg-tv-surface/90 text-tv-muted border-tv-border hover:text-white'
@@ -738,7 +746,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
           title="Auto scroll to latest candle on replay step"
         >
           <span className={`w-1.5 h-1.5 rounded-full ${autoScroll ? 'bg-emerald-400 animate-pulse' : 'bg-tv-muted'}`} />
-          Auto-Scroll
+          <span className="hidden sm:inline">Auto-Scroll</span>
         </button>
       </div>
     </div>

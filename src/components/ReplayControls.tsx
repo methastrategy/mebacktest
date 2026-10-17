@@ -63,18 +63,18 @@ export const ReplayControls: React.FC<ReplayControlsProps> = ({
   };
 
   return (
-    <div className="bg-tv-surface/95 backdrop-blur-md border border-tv-border px-4 py-2.5 rounded-xl shadow-2xl flex flex-wrap items-center gap-3 select-none">
+    <div className="bg-tv-surface/95 backdrop-blur-md border border-tv-border px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl shadow-2xl flex flex-wrap items-center justify-center gap-1.5 sm:gap-3 select-none max-w-[calc(100vw-1.5rem)]">
       {/* Play / Pause */}
       <button
         onClick={onTogglePlay}
         title={isPlaying ? 'Pause Replay (Space)' : 'Play Replay (Space)'}
-        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium text-sm transition-all shadow-md ${
+        className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-2 sm:py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-md active:scale-95 ${
           isPlaying
             ? 'bg-amber-600 hover:bg-amber-500 text-white ring-2 ring-amber-400/40'
             : 'bg-tv-blue hover:bg-blue-600 text-white'
         }`}
       >
-        {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+        {isPlaying ? <Pause size={15} /> : <Play size={15} />}
         <span>{isPlaying ? 'Pause' : 'Play'}</span>
       </button>
 
@@ -83,20 +83,20 @@ export const ReplayControls: React.FC<ReplayControlsProps> = ({
         onClick={onStepForward}
         title="Next Bar (Spacebar / Right Arrow)"
         disabled={isPlaying || cursorIndex >= totalBars - 1}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-tv-border/80 hover:bg-tv-border text-tv-text hover:text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed border border-white/5"
+        className="flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-xl bg-tv-border/80 hover:bg-tv-border text-tv-text hover:text-white text-xs sm:text-sm font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed border border-white/5 active:scale-95"
       >
-        <SkipForward size={16} />
+        <SkipForward size={15} />
         <span>Step Bar</span>
       </button>
 
       {/* Speed Selector */}
-      <div className="flex items-center gap-1 bg-tv-bg/80 border border-tv-border px-2 py-1 rounded-lg">
-        <Gauge size={14} className="text-tv-muted mr-1" />
+      <div className="flex items-center gap-0.5 sm:gap-1 bg-tv-bg/80 border border-tv-border px-1.5 sm:px-2 py-1 rounded-xl">
+        <Gauge size={13} className="text-tv-muted mr-0.5 hidden xs:inline" />
         {SPEED_OPTIONS.map((opt) => (
           <button
             key={opt.ms}
             onClick={() => onChangeSpeed(opt.ms)}
-            className={`px-1.5 py-0.5 rounded text-xs font-mono transition-colors ${
+            className={`px-1.5 py-0.5 rounded text-[11px] sm:text-xs font-mono transition-colors ${
               speedMs === opt.ms
                 ? 'bg-tv-blue text-white font-bold'
                 : 'text-tv-muted hover:text-tv-text'
@@ -107,30 +107,32 @@ export const ReplayControls: React.FC<ReplayControlsProps> = ({
         ))}
       </div>
 
-      <div className="h-5 w-px bg-tv-border mx-1" />
+      <div className="h-4 w-px bg-tv-border mx-0.5 hidden sm:block" />
 
       {/* Random Scenario (Mystery Drill) */}
       <button
         onClick={onRandomScenario}
         title="สุ่มช่วงเวลาและสถานการณ์ใหม่ (Random Scenario Drill)"
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-medium transition-all shadow-md hover:shadow-purple-500/20 active:scale-95"
+        className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-semibold transition-all shadow-md hover:shadow-purple-500/20 active:scale-95"
       >
-        <Dices size={16} className="animate-spin-once" />
-        <span>สุ่มสถานการณ์</span>
+        <Dices size={15} className="animate-spin-once" />
+        <span className="hidden xs:inline sm:inline">สุ่มสถานการณ์</span>
+        <span className="xs:hidden sm:hidden">สุ่ม</span>
       </button>
 
       {/* Blind Mode Toggle */}
       <button
         onClick={onToggleBlindMode}
         title={isBlindMode ? 'ปิด Blind Mode (แสดงวันที่)' : 'เปิด Blind Mode (ซ่อนวันที่เพื่อฝึกฝน)'}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${
+        className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all border ${
           isBlindMode
             ? 'bg-purple-950/80 border-purple-500/80 text-purple-200'
             : 'bg-tv-bg border-tv-border text-tv-muted hover:text-tv-text'
         }`}
       >
-        {isBlindMode ? <EyeOff size={16} /> : <Eye size={16} />}
-        <span>{isBlindMode ? 'Blind Mode: ON' : 'Blind Mode: OFF'}</span>
+        {isBlindMode ? <EyeOff size={15} /> : <Eye size={15} />}
+        <span className="hidden sm:inline">{isBlindMode ? 'Blind Mode: ON' : 'Blind Mode: OFF'}</span>
+        <span className="sm:hidden">{isBlindMode ? 'Blind ON' : 'Blind'}</span>
       </button>
 
       {/* Jump To Date (Pop-up) */}
@@ -138,9 +140,9 @@ export const ReplayControls: React.FC<ReplayControlsProps> = ({
         <button
           onClick={() => setShowDatePicker(!showDatePicker)}
           title="เลือกวันที่และเวลาเจาะจง (Jump to Date)"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-tv-bg border border-tv-border hover:border-tv-muted text-tv-text text-sm transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-2 sm:py-1.5 rounded-xl bg-tv-bg border border-tv-border hover:border-tv-muted text-tv-text text-xs sm:text-sm transition-colors"
         >
-          <Calendar size={15} className="text-tv-muted" />
+          <Calendar size={14} className="text-tv-muted" />
           <span className="hidden sm:inline">เลือกวันที่</span>
         </button>
 
