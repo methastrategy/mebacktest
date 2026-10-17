@@ -82,6 +82,7 @@ export class AuthService {
         creditBalance,
         referralCode,
         passExpiresAt: profile?.pass_expires_at ? new Date(profile.pass_expires_at).getTime() : undefined,
+        trialEndsAt: new Date(user.created_at || Date.now()).getTime() + 7 * 24 * 60 * 60 * 1000,
         createdAt: new Date(user.created_at || Date.now()).getTime(),
       };
 
@@ -97,17 +98,7 @@ export class AuthService {
       if (data) {
         this.currentUser = JSON.parse(data);
       } else {
-        // Default guest user with free tier & 10 initial credits
-        this.currentUser = {
-          id: 'guest_trader_01',
-          email: 'trader@mebacktest.com',
-          displayName: 'Gold Scalper (Free)',
-          tier: 'free',
-          creditBalance: 10,
-          referralCode: 'GOLD77',
-          createdAt: Date.now(),
-        };
-        this.saveToStorage();
+        this.currentUser = null;
       }
     } catch {
       this.currentUser = null;
@@ -146,7 +137,24 @@ export class AuthService {
   }
 
   public isAuthenticated(): boolean {
-    return this.currentUser !== null;
+    return this.currentUser !== null && !this.isGuestUser();
+  }
+
+  public isGuestUser(): boolean {
+    return !this.currentUser || this.currentUser.id === 'guest_trader_01' || this.currentUser.id.startsWith('guest_');
+  }
+
+  public isInTrial(): boolean {
+    if (!this.currentUser) return false;
+    const { tier, trialEndsAt } = this.currentUser;
+    if (tier === 'pro_monthly' || tier === 'pro_yearly' || tier === 'lifetime') return false;
+    return Boolean(trialEndsAt && trialEndsAt > Date.now());
+  }
+
+  public getTrialRemainingDays(): number {
+    if (!this.currentUser || !this.currentUser.trialEndsAt) return 0;
+    const diffMs = this.currentUser.trialEndsAt - Date.now();
+    return Math.max(0, Math.ceil(diffMs / (24 * 60 * 60 * 1000)));
   }
 
   public isPro(): boolean {
@@ -156,6 +164,9 @@ export class AuthService {
       return true;
     }
     if ((tier === 'day_pass' || tier === 'week_pass') && passExpiresAt && passExpiresAt > Date.now()) {
+      return true;
+    }
+    if (this.isInTrial()) {
       return true;
     }
     return false;
@@ -255,14 +266,16 @@ export class AuthService {
 
   public signInWithEmail(email: string, displayName?: string): UserProfile {
     const isProEmail = email.toLowerCase().includes('pro') || email.toLowerCase().includes('ftmo');
+    const now = Date.now();
     const user: UserProfile = {
       id: `usr_${Math.random().toString(36).substring(2, 9)}`,
       email,
       displayName: displayName || email.split('@')[0],
       tier: isProEmail ? 'pro_monthly' : 'free',
       creditBalance: isProEmail ? 9999 : 10,
+      trialEndsAt: now + 7 * 24 * 60 * 60 * 1000,
       referralCode: `REF-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
-      createdAt: Date.now(),
+      createdAt: now,
     };
     this.currentUser = user;
     this.saveToStorage();
@@ -270,15 +283,17 @@ export class AuthService {
   }
 
   public signInWithOAuth(provider: OAuthProvider): UserProfile {
+    const now = Date.now();
     const user: UserProfile = {
       id: `${provider}_${Math.random().toString(36).substring(2, 9)}`,
       email: `${provider}_trader@mebacktest.com`,
       displayName: `${provider.toUpperCase()} Trader`,
       avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${provider}`,
-      tier: 'pro_monthly',
+      tier: 'free',
       creditBalance: 100,
+      trialEndsAt: now + 7 * 24 * 60 * 60 * 1000,
       referralCode: `VIP-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
-      createdAt: Date.now(),
+      createdAt: now,
     };
     this.currentUser = user;
     this.saveToStorage();

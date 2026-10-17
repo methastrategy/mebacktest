@@ -15,9 +15,11 @@ import {
   User,
   Menu,
   X,
+  Sparkles,
 } from 'lucide-react';
 import { ASSET_SPECS, AssetSpec } from '../core/AssetSpecs';
 import { UserProfile } from '../types/auth';
+import { AuthService } from '../core/AuthService';
 import { BillingEngine } from '../core/BillingEngine';
 import { isSupabaseConfigured } from '../lib/supabase';
 
@@ -297,8 +299,17 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           <span>30% Affiliate</span>
         </button>
 
-        {/* Upgrade Pro or Pro Badge (Always visible on all screens) */}
-        {!isPro ? (
+        {/* Trial Badge or Upgrade Pro or Pro Badge (Always visible on all screens) */}
+        {AuthService.getInstance().isInTrial() ? (
+          <button
+            onClick={() => onOpenUpgrade('pro_monthly')}
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 text-white text-[11px] sm:text-xs font-bold shadow-md transition-all active:scale-95"
+            title={`ทดลองใช้ Pro ฟรีเหลืออีก ${AuthService.getInstance().getTrialRemainingDays()} วัน — คลิกเพื่อรับสิทธิ์ส่วนลด Early Bird 30%`}
+          >
+            <Sparkles size={12} className="text-amber-300" />
+            <span>Trial: {AuthService.getInstance().getTrialRemainingDays()}d</span>
+          </button>
+        ) : !isPro ? (
           <button
             onClick={() => onOpenUpgrade('pro_monthly')}
             className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 text-black text-[11px] sm:text-xs font-extrabold shadow-md transition-all active:scale-95 animate-pulse"

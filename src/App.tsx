@@ -70,8 +70,17 @@ export const App: React.FC = () => {
   // Prop Firm Mode State
   const [isPropModeEnabled, setIsPropModeEnabled] = useState<boolean>(false);
 
-  // Commercial Landing Page Toggle
-  const [isLandingActive, setIsLandingActive] = useState<boolean>(false);
+  // Commercial Landing Page Toggle (Default to Landing Page if unauthenticated)
+  const [isLandingActive, setIsLandingActive] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('session') || params.get('share')) {
+        return false; // Direct to shared session inspector
+      }
+    }
+    const user = AuthService.getInstance().getCurrentUser();
+    return !user || user.id === 'guest_trader_01' || user.id.startsWith('guest_');
+  });
 
   // Read-only Shared Session Mode
   const [isReadOnlySession, setIsReadOnlySession] = useState<boolean>(false);
@@ -422,6 +431,24 @@ export const App: React.FC = () => {
     [loadDataset]
   );
 
+  // Auto-detect and load shared replay session from URL (?session=:slug or ?share=:slug)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const slug = params.get('session') || params.get('share');
+    if (slug) {
+      CloudSessionService.getInstance().fetchRemoteSessionBySlug(slug).then((remoteSess) => {
+        if (remoteSess) {
+          handleLoadCloudSession(remoteSess);
+          setIsReadOnlySession(true);
+          setSharedSessionTitle(remoteSess.title);
+          setIsLandingActive(false);
+          showToast(`🔍 กำลังดูเซสชันที่แชร์: ${remoteSess.title}`);
+        }
+      });
+    }
+  }, [handleLoadCloudSession, showToast]);
+
   // Custom CSV Upload
   const handleCustomCsvUpload = useCallback((csvText: string, filename: string) => {
     try {
@@ -493,13 +520,35 @@ export const App: React.FC = () => {
   // If Commercial Landing Page is activated
   if (isLandingActive) {
     return (
-      <LandingPage
-        onLaunchTerminal={() => setIsLandingActive(false)}
-        onOpenUpgrade={(planId) => {
-          setUpgradePlanInit(planId || 'pro_monthly');
-          setIsUpgradeModalOpen(true);
-        }}
-      />
+      <>
+        <LandingPage
+          onLaunchTerminal={() => {
+            if (!currentUser || currentUser.id === 'guest_trader_01' || currentUser.id.startsWith('guest_')) {
+              setIsAuthModalOpen(true);
+            } else {
+              setIsLandingActive(false);
+            }
+          }}
+          onOpenUpgrade={(planId) => {
+            setUpgradePlanInit(planId || 'pro_monthly');
+            setIsUpgradeModalOpen(true);
+          }}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          currentUser={currentUser}
+        />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          currentUser={currentUser}
+          onUserChanged={(u) => {
+            setCurrentUser(u);
+            if (u && !u.id.startsWith('guest_')) {
+              setIsLandingActive(false);
+              showToast(`🎉 ยินดีต้อนรับ ${u.displayName}! คุณได้รับสิทธิ์ Pro Trial ฟรี 7 วัน`);
+            }
+          }}
+        />
+      </>
     );
   }
 

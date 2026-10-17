@@ -12,14 +12,20 @@ import {
   Layers,
 } from 'lucide-react';
 
+import { UserProfile } from '../types/auth';
+
 interface LandingPageProps {
   onLaunchTerminal: () => void;
   onOpenUpgrade: (planId?: string) => void;
+  onOpenAuth?: () => void;
+  currentUser?: UserProfile | null;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   onLaunchTerminal,
   onOpenUpgrade,
+  onOpenAuth,
+  currentUser,
 }) => {
 
   return (
@@ -56,12 +62,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          {!currentUser || currentUser.id === 'guest_trader_01' || currentUser.id.startsWith('guest_') ? (
+            <button
+              onClick={onOpenAuth || onLaunchTerminal}
+              className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs transition-colors hidden sm:block"
+            >
+              เข้าสู่ระบบ / สมัครสมาชิก
+            </button>
+          ) : null}
           <button
-            onClick={onLaunchTerminal}
+            onClick={currentUser && !currentUser.id.startsWith('guest_') ? onLaunchTerminal : (onOpenAuth || onLaunchTerminal)}
             className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-extrabold text-xs shadow-md transition-all active:scale-95 flex items-center gap-1.5"
           >
             <Play size={13} className="fill-black" />
-            <span>Launch Terminal</span>
+            <span>{currentUser && !currentUser.id.startsWith('guest_') ? 'Launch Terminal' : 'ทดลองใช้ฟรี 7 วัน'}</span>
           </button>
         </div>
       </nav>
@@ -74,7 +88,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         {/* Eyebrow badge */}
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold tracking-wide uppercase mb-6 shadow-sm">
           <Sparkles size={13} />
-          <span>Institutional Price Action Replay Terminal</span>
+          <span>Institutional Price Action Replay Terminal • Free 7-Day Pro Trial</span>
         </div>
 
         {/* Main Headline */}
@@ -96,11 +110,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         {/* Action Buttons */}
         <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
           <button
-            onClick={onLaunchTerminal}
+            onClick={currentUser && !currentUser.id.startsWith('guest_') ? onLaunchTerminal : (onOpenAuth || onLaunchTerminal)}
             className="px-7 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-black text-sm shadow-[0_0_25px_rgba(245,158,11,0.3)] transition-all active:scale-95 flex items-center gap-2"
           >
-            <Play size={16} className="fill-black" />
-            <span>Launch Free Terminal</span>
+            <Sparkles size={16} className="fill-black" />
+            <span>
+              {currentUser && !currentUser.id.startsWith('guest_')
+                ? 'เปิดกระดานเทรด (Launch Terminal)'
+                : '⚡ เริ่มทดลองใช้ Pro ฟรี 7 วัน (ไม่ต้องกรอกบัตร)'}
+            </span>
             <ArrowRight size={16} />
           </button>
 
@@ -108,7 +126,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             onClick={() => onOpenUpgrade('pro_monthly')}
             className="px-6 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/15 text-white font-bold text-sm transition-all"
           >
-            Upgrade to Pro Trader
+            ดูรายละเอียดแพ็กเกจ Pro & Day Pass
           </button>
         </div>
 

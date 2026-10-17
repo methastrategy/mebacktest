@@ -8,6 +8,7 @@ export interface UserProfile {
   tier: UserTier;
   creditBalance: number;
   passExpiresAt?: number; // Unix timestamp for Day/Week passes
+  trialEndsAt?: number;   // Unix timestamp for 7-Day Full Pro Trial
   referralCode?: string;
   referredBy?: string;
   createdAt: number;
