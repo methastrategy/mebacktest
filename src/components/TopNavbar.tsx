@@ -151,49 +151,55 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           </button>
 
           {isSymbolDropdownOpen && (
-            <div className="absolute top-10 left-0 w-64 bg-[#0d111a] border border-tv-border rounded-2xl shadow-2xl p-2 z-50 animate-fade-in">
-              <input
-                type="text"
-                value={symbolFilter}
-                onChange={(e) => setSymbolFilter(e.target.value)}
-                placeholder="Search symbol..."
-                className="w-full bg-tv-bg border border-tv-border focus:border-amber-400 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-tv-muted focus:outline-none mb-1.5"
-                autoFocus
+            <>
+              <div
+                className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs"
+                onClick={() => setIsSymbolDropdownOpen(false)}
               />
+              <div className="absolute top-10 left-0 w-64 bg-[#0d111a] border border-tv-border rounded-2xl shadow-2xl p-2 z-50 animate-fade-in">
+                <input
+                  type="text"
+                  value={symbolFilter}
+                  onChange={(e) => setSymbolFilter(e.target.value)}
+                  placeholder="Search symbol..."
+                  className="w-full bg-tv-bg border border-tv-border focus:border-amber-400 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-tv-muted focus:outline-none mb-1.5"
+                  autoFocus
+                />
 
-              <div className="max-h-60 overflow-y-auto space-y-1">
-                {filteredSymbols.map((spec) => {
-                  const isLocked = spec.symbol !== 'XAUUSD' && !isPro;
-                  return (
-                    <button
-                      key={spec.symbol}
-                      onClick={() => handleSymbolSelect(spec.symbol)}
-                      className={`w-full flex items-center justify-between p-2 rounded-xl text-xs transition-colors text-left ${
-                        currentSymbol === spec.symbol
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                          : 'hover:bg-tv-surface text-tv-text hover:text-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{spec.icon}</span>
-                        <div>
-                          <span className="font-bold block">{spec.symbol}</span>
-                          <span className="text-[10px] text-tv-muted block">{spec.name}</span>
+                <div className="max-h-60 overflow-y-auto space-y-1">
+                  {filteredSymbols.map((spec) => {
+                    const isLocked = spec.symbol !== 'XAUUSD' && !isPro;
+                    return (
+                      <button
+                        key={spec.symbol}
+                        onClick={() => handleSymbolSelect(spec.symbol)}
+                        className={`w-full flex items-center justify-between p-2 rounded-xl text-xs transition-colors text-left ${
+                          currentSymbol === spec.symbol
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                            : 'hover:bg-tv-surface text-tv-text hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>{spec.icon}</span>
+                          <div>
+                            <span className="font-bold block">{spec.symbol}</span>
+                            <span className="text-[10px] text-tv-muted block">{spec.name}</span>
+                          </div>
                         </div>
-                      </div>
 
-                      {isLocked ? (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 font-bold uppercase border border-amber-500/20 flex items-center gap-0.5">
-                          <Crown size={9} /> Pro
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-tv-muted font-mono">{spec.category}</span>
-                      )}
-                    </button>
-                  );
-                })}
+                        {isLocked ? (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 font-bold uppercase border border-amber-500/20 flex items-center gap-0.5">
+                            <Crown size={9} /> Pro
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-tv-muted font-mono">{spec.category}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            </>
           )}
         </div>
 
@@ -207,7 +213,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
                 onClick={() => handleTimeframeClick(tf)}
                 disabled={isLoading}
                 title={isTfLocked ? `${tf} requires Pro tier` : `Switch to ${tf}`}
-                className={`px-2 py-1 rounded text-xs font-semibold transition-all relative ${
+                className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[11px] sm:text-xs font-semibold transition-all relative ${
                   currentTimeframe === tf
                     ? 'bg-tv-blue text-white shadow-sm'
                     : 'text-tv-muted hover:text-tv-text'
@@ -375,7 +381,12 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
 
       {/* Mobile Drawer Dropdown Menu */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden absolute top-12 right-2 w-72 bg-[#0c1017] border border-tv-border rounded-2xl shadow-2xl p-3 z-50 flex flex-col gap-1.5 animate-fade-in backdrop-blur-xl">
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs lg:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          <div className="lg:hidden absolute top-12 right-2 w-72 bg-[#0c1017] border border-tv-border rounded-2xl shadow-2xl p-3 z-50 flex flex-col gap-1.5 animate-fade-in backdrop-blur-xl">
           <div className="flex items-center justify-between pb-2 border-b border-white/10 mb-1">
             <span className="text-xs font-bold text-white uppercase tracking-wider">Features & Tools</span>
             <button
@@ -511,6 +522,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
             </button>
           </div>
         </div>
+      </>
       )}
     </header>
   );

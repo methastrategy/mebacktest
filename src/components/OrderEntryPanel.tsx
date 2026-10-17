@@ -149,11 +149,11 @@ export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
         </h3>
         <div className="text-right">
           <div className="text-xs font-mono font-bold text-amber-300">
-            {currentPrice ? currentPrice.toFixed(2) : '---'}
+            {currentPrice ? currentPrice.toFixed(spec.digits) : '---'}
           </div>
           {spreadPips > 0 && currentPrice > 0 && (
             <div className="text-[10px] font-mono text-tv-muted">
-              Ask: <span className="text-tv-text">{askPrice.toFixed(2)}</span> ({spreadPips}p)
+              Ask: <span className="text-tv-text">{askPrice.toFixed(spec.digits)}</span> ({spreadPips}p)
             </div>
           )}
         </div>
@@ -164,7 +164,7 @@ export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
         <div className="flex justify-between items-center text-[11px]">
           <span className="text-tv-muted font-medium">Spread Simulation:</span>
           <span className="text-amber-400 font-mono font-bold">
-            {spreadPips} pips (${(spreadPips / 100).toFixed(2)})
+            {spreadPips} pips (${(spreadPips / spec.pipScale).toFixed(spec.digits)})
           </span>
         </div>
         <div className="flex items-center gap-1.5">

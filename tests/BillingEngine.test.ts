@@ -71,8 +71,11 @@ describe('BillingEngine', () => {
     expect(engine.verifyPromptPayChecksum(res.payload)).toBe(true);
 
     // Corrupted payload must fail checksum verification
-    const corrupted = res.payload.substring(0, res.payload.length - 1) + '0';
+    const lastChar = res.payload.slice(-1);
+    const corrupted = res.payload.slice(0, -1) + (lastChar === '0' ? '1' : '0');
     expect(engine.verifyPromptPayChecksum(corrupted)).toBe(false);
+    // Also test corrupted payload body
+    expect(engine.verifyPromptPayChecksum('00020199' + res.payload.substring(8))).toBe(false);
   });
 
   it('handles 13-digit National ID / Tax ID in PromptPay format', () => {

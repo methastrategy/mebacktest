@@ -29,7 +29,7 @@ import { SocialShareModal } from './components/SocialShareModal';
 import { AffiliateModal } from './components/AffiliateModal';
 import { FeedbackModal } from './components/FeedbackModal';
 import { LandingPage } from './components/LandingPage';
-import { Eye, LogOut, Activity, Zap, Layers, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { Eye, LogOut, Activity, Zap, Layers, ShieldCheck, Sparkles, X, Plus, Minus, TrendingUp, TrendingDown } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [currentSymbol, setCurrentSymbol] = useState<string>('XAUUSD');
@@ -43,6 +43,21 @@ export const App: React.FC = () => {
 
   // Mobile Tab Navigation ('chart' | 'trade' | 'positions' | 'account')
   const [mobileTab, setMobileTab] = useState<'chart' | 'trade' | 'positions' | 'account'>('chart');
+
+  // Mobile In-Chart Quick Trade Sheet state
+  const [isQuickTradeOpen, setIsQuickTradeOpen] = useState<boolean>(false);
+  const [quickVolume, setQuickVolume] = useState<number>(0.1);
+  const [quickSlPips, setQuickSlPips] = useState<number | undefined>(20);
+  const [quickTpPips, setQuickTpPips] = useState<number | undefined>(40);
+
+  // Instant Feedback Toast Notification
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((prev) => (prev === msg ? null : prev));
+    }, 2500);
+  }, []);
 
   // Dismissible First-Time User Onboarding Guide
   const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
@@ -312,8 +327,10 @@ export const App: React.FC = () => {
       const acc = tradingEngineRef.current.getState();
       setAccountState(acc);
       setPropFirmState(propFirmEngineRef.current.updateEquity(acc.equity, acc.balance, currentBar.time));
+      const digits = getAssetSpec(currentSymbol).digits;
+      showToast(`✅ ${params.type} ${params.volume}L @ ${currentBar.close.toFixed(digits)} เปิดสำเร็จ`);
     },
-    [currentBar, cursorIndex, spreadPips, isReadOnlySession]
+    [currentBar, cursorIndex, spreadPips, isReadOnlySession, currentSymbol, showToast]
   );
 
   // Close position manually
@@ -324,8 +341,9 @@ export const App: React.FC = () => {
       const acc = tradingEngineRef.current.getState();
       setAccountState(acc);
       setPropFirmState(propFirmEngineRef.current.updateEquity(acc.equity, acc.balance, currentBar.time));
+      showToast('ปิดออเดอร์เรียบร้อย');
     },
-    [currentBar, isReadOnlySession]
+    [currentBar, isReadOnlySession, showToast]
   );
 
   // Move position SL to Break-Even
@@ -338,8 +356,9 @@ export const App: React.FC = () => {
       if (currentBar) {
         setPropFirmState(propFirmEngineRef.current.updateEquity(acc.equity, acc.balance, currentBar.time));
       }
+      showToast('เลื่อน Stop Loss มาที่ทุน (Break-Even) แล้ว');
     },
-    [currentBar, isReadOnlySession]
+    [currentBar, isReadOnlySession, showToast]
   );
 
   // Partially close position
@@ -350,8 +369,9 @@ export const App: React.FC = () => {
       const acc = tradingEngineRef.current.getState();
       setAccountState(acc);
       setPropFirmState(propFirmEngineRef.current.updateEquity(acc.equity, acc.balance, currentBar.time));
+      showToast('แบ่งปิดทำกำไร 50% เรียบร้อย');
     },
-    [currentBar, isReadOnlySession]
+    [currentBar, isReadOnlySession, showToast]
   );
 
   // Select Prop Firm Challenge Account Size
@@ -502,6 +522,14 @@ export const App: React.FC = () => {
         </div>
       )}
 
+      {/* Floating Notification Toast */}
+      {toastMessage && (
+        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-[#0f1422]/95 border border-amber-500/50 text-amber-200 text-xs font-semibold shadow-2xl backdrop-blur-md flex items-center gap-2 pointer-events-none animate-fade-in max-w-[90vw]">
+          <Sparkles size={14} className="text-amber-400 shrink-0" />
+          <span className="truncate">{toastMessage}</span>
+        </div>
+      )}
+
       {/* Top Navigation Bar */}
       <TopNavbar
         currentSymbol={currentSymbol}
@@ -578,15 +606,197 @@ export const App: React.FC = () => {
             />
           </div>
 
+          {/* Mobile Floating Floating P/L Pill (< lg) */}
+          {accountState.openPositions.length > 0 && (
+            <button
+              onClick={() => setMobileTab('positions')}
+              className={`lg:hidden absolute top-14 left-3 z-20 px-2.5 py-1.5 rounded-full border shadow-xl flex items-center gap-1.5 text-xs font-mono font-bold backdrop-blur-md active:scale-95 transition-transform ${
+                accountState.unrealizedPnL >= 0
+                  ? 'bg-emerald-950/85 border-emerald-500/50 text-emerald-300'
+                  : 'bg-rose-950/85 border-rose-500/50 text-rose-300'
+              }`}
+              title="View Open Positions"
+            >
+              <span>{accountState.unrealizedPnL >= 0 ? `+$${accountState.unrealizedPnL.toFixed(2)}` : `-$${Math.abs(accountState.unrealizedPnL).toFixed(2)}`}</span>
+              <span className="text-[10px] px-1 py-0.2 bg-black/40 rounded-full">({accountState.openPositions.length})</span>
+            </button>
+          )}
+
           {/* Quick Trade Floating Button on Mobile Chart (< lg) */}
           <button
-            onClick={() => setMobileTab('trade')}
+            onClick={() => setIsQuickTradeOpen((prev) => !prev)}
             className="lg:hidden absolute top-14 right-3 z-20 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-extrabold text-xs shadow-xl flex items-center gap-1.5 active:scale-95 transition-transform"
-            title="Open Order Entry Panel"
+            title="Open In-Chart Quick Trade Bar"
           >
             <Zap size={13} className="fill-black" />
             <span>⚡ Trade</span>
           </button>
+
+          {/* Mobile In-Chart Quick Order Execution Sheet */}
+          {isQuickTradeOpen && (() => {
+            const spec = getAssetSpec(currentSymbol);
+            const pipValue = 1 / spec.pipScale;
+            const halfSpread = (spreadPips * pipValue) / 2;
+            const bid = currentBar ? currentBar.close - halfSpread : 0;
+            const ask = currentBar ? currentBar.close + halfSpread : 0;
+
+            return (
+              <>
+                <div
+                  className="fixed inset-0 z-30 bg-black/50 backdrop-blur-xs lg:hidden"
+                  onClick={() => setIsQuickTradeOpen(false)}
+                />
+                <div className="lg:hidden absolute top-24 left-1/2 -translate-x-1/2 z-40 w-[92vw] max-w-sm bg-[#0c1017]/95 border border-tv-border rounded-2xl shadow-2xl p-3.5 backdrop-blur-xl animate-fade-in flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                    <div className="flex items-center gap-2">
+                      <Zap size={15} className="text-amber-400" />
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">{currentSymbol} Quick Trade</span>
+                      <span className="text-[10px] text-tv-muted font-mono">Spread: {spreadPips}p</span>
+                    </div>
+                    <button
+                      onClick={() => setIsQuickTradeOpen(false)}
+                      className="text-tv-muted hover:text-white p-1"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+
+                  {/* Volume Selector */}
+                  <div className="flex items-center justify-between bg-tv-bg border border-tv-border rounded-xl p-1.5">
+                    <span className="text-xs text-tv-muted font-semibold pl-1.5">Volume (Lots):</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setQuickVolume((v) => Math.max(0.01, +(v - 0.05).toFixed(2)))}
+                        className="p-1 rounded-lg bg-tv-surface hover:bg-white/10 text-tv-text active:scale-90"
+                      >
+                        <Minus size={13} />
+                      </button>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        max="50"
+                        value={quickVolume}
+                        onChange={(e) => setQuickVolume(Math.max(0.01, parseFloat(e.target.value) || 0.01))}
+                        className="w-14 bg-transparent text-center font-mono font-bold text-xs text-amber-400 focus:outline-none"
+                      />
+                      <button
+                        onClick={() => setQuickVolume((v) => Math.min(50, +(v + 0.05).toFixed(2)))}
+                        className="p-1 rounded-lg bg-tv-surface hover:bg-white/10 text-tv-text active:scale-90"
+                      >
+                        <Plus size={13} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Volume Quick Presets */}
+                  <div className="grid grid-cols-5 gap-1">
+                    {[0.01, 0.05, 0.1, 0.5, 1.0].map((lot) => (
+                      <button
+                        key={lot}
+                        onClick={() => setQuickVolume(lot)}
+                        className={`py-1 rounded-lg text-[10px] font-mono font-bold transition-colors ${
+                          quickVolume === lot
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                            : 'bg-tv-bg text-tv-muted hover:text-white'
+                        }`}
+                      >
+                        {lot}L
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* SL & TP Pips */}
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-tv-bg border border-tv-border rounded-xl p-1.5 flex flex-col gap-0.5">
+                      <span className="text-[10px] text-rose-400 font-semibold">SL (Pips)</span>
+                      <input
+                        type="number"
+                        placeholder="No SL"
+                        value={quickSlPips ?? ''}
+                        onChange={(e) => setQuickSlPips(e.target.value === '' ? undefined : Math.max(0, parseInt(e.target.value)))}
+                        className="bg-transparent font-mono text-white text-xs focus:outline-none"
+                      />
+                    </div>
+                    <div className="bg-tv-bg border border-tv-border rounded-xl p-1.5 flex flex-col gap-0.5">
+                      <span className="text-[10px] text-emerald-400 font-semibold">TP (Pips)</span>
+                      <input
+                        type="number"
+                        placeholder="No TP"
+                        value={quickTpPips ?? ''}
+                        onChange={(e) => setQuickTpPips(e.target.value === '' ? undefined : Math.max(0, parseInt(e.target.value)))}
+                        className="bg-transparent font-mono text-white text-xs focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Big Buy & Sell Buttons */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button
+                      onClick={() => {
+                        if (!currentBar) return;
+                        const sl = quickSlPips ? currentBar.close + (quickSlPips * pipValue) : undefined;
+                        const tp = quickTpPips ? currentBar.close - (quickTpPips * pipValue) : undefined;
+                        handlePlaceOrder({
+                          type: 'SELL',
+                          volume: quickVolume,
+                          stopLoss: sl,
+                          takeProfit: tp,
+                        });
+                        setIsQuickTradeOpen(false);
+                      }}
+                      disabled={isReadOnlySession || !currentBar}
+                      className="py-2.5 px-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-extrabold text-xs shadow-lg flex flex-col items-center justify-center active:scale-95 transition-all disabled:opacity-40"
+                    >
+                      <div className="flex items-center gap-1">
+                        <TrendingDown size={14} />
+                        <span>SELL</span>
+                      </div>
+                      <span className="font-mono text-[11px] font-normal opacity-90">
+                        {currentBar ? bid.toFixed(spec.digits) : '---'}
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (!currentBar) return;
+                        const sl = quickSlPips ? currentBar.close - (quickSlPips * pipValue) : undefined;
+                        const tp = quickTpPips ? currentBar.close + (quickTpPips * pipValue) : undefined;
+                        handlePlaceOrder({
+                          type: 'BUY',
+                          volume: quickVolume,
+                          stopLoss: sl,
+                          takeProfit: tp,
+                        });
+                        setIsQuickTradeOpen(false);
+                      }}
+                      disabled={isReadOnlySession || !currentBar}
+                      className="py-2.5 px-2 rounded-xl bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white font-extrabold text-xs shadow-lg flex flex-col items-center justify-center active:scale-95 transition-all disabled:opacity-40"
+                    >
+                      <div className="flex items-center gap-1">
+                        <TrendingUp size={14} />
+                        <span>BUY</span>
+                      </div>
+                      <span className="font-mono text-[11px] font-normal opacity-90">
+                        {currentBar ? ask.toFixed(spec.digits) : '---'}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Link to advanced trade panel */}
+                  <button
+                    onClick={() => {
+                      setIsQuickTradeOpen(false);
+                      setMobileTab('trade');
+                    }}
+                    className="text-[11px] text-tv-muted hover:text-amber-400 text-center transition-colors pt-0.5"
+                  >
+                    เปิดพาเนลคำนวณความเสี่ยงละเอียด (Risk Calculator) →
+                  </button>
+                </div>
+              </>
+            );
+          })()}
 
           <TradingChart
             bars={visibleBars}
@@ -635,7 +845,7 @@ export const App: React.FC = () => {
               onPlaceOrder={(params) => {
                 handlePlaceOrder(params);
                 if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-                  setMobileTab('positions');
+                  setMobileTab('chart');
                 }
               }}
               clickedPrice={clickedChartPrice}

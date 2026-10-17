@@ -133,6 +133,17 @@ export const TradingChart: React.FC<TradingChartProps> = ({
           });
         },
       },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
+      handleScale: {
+        axisPressedMouseMove: true,
+        mouseWheel: true,
+        pinch: true,
+      },
     });
 
     const series = chart.addCandlestickSeries({
@@ -551,7 +562,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   return (
     <div className="relative w-full h-full flex flex-col bg-tv-bg">
       {/* Chart Canvas */}
-      <div ref={containerRef} className="w-full flex-1" />
+      <div ref={containerRef} className="w-full flex-1 touch-none select-none overscroll-none" />
 
       {/* Left-Side Vertical Drawing Toolbar */}
       <div className="absolute top-16 left-4 z-20 flex flex-col gap-1 bg-tv-surface/90 backdrop-blur border border-tv-border p-1 rounded-xl shadow-xl">
