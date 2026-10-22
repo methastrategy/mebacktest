@@ -43,7 +43,7 @@ export const PositionList: React.FC<PositionListProps> = ({
             return (
               <div
                 key={pos.id}
-                className="bg-tv-bg border border-tv-border rounded-lg p-2.5 flex flex-col gap-1.5 transition-all hover:border-tv-muted"
+                className="bg-tv-bg border border-tv-border rounded-lg p-2.5 flex flex-col gap-1.5 transition-colors duration-150 hover:border-tv-muted"
               >
                 <div className="flex items-center justify-between gap-1">
                   <div className="flex items-center gap-1.5">

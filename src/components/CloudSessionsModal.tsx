@@ -141,7 +141,7 @@ export const CloudSessionsModal: React.FC<CloudSessionsModalProps> = ({
               return (
                 <div
                   key={sess.id}
-                  className="p-4 rounded-xl bg-tv-surface/80 border border-tv-border hover:border-tv-muted transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  className="p-4 rounded-xl bg-tv-surface/80 border border-tv-border hover:border-tv-muted transition-colors duration-150 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2">

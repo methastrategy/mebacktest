@@ -160,7 +160,7 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({
                   <div
                     key={plan.id}
                     onClick={() => setSelectedPlanId(plan.id)}
-                    className={`relative cursor-pointer p-3 rounded-2xl border transition-all text-left ${
+                    className={`relative cursor-pointer p-3 rounded-2xl border transition-colors duration-150 text-left ${
                       isSelected
                         ? 'bg-amber-500/10 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
                         : 'bg-tv-surface/60 border-tv-border hover:border-tv-muted'
@@ -243,7 +243,7 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('promptpay')}
-                  className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-colors duration-150 ${
                     paymentMethod === 'promptpay'
                       ? 'bg-tv-blue text-white shadow-sm'
                       : 'text-tv-muted hover:text-white'
@@ -255,7 +255,7 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('stripe')}
-                  className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-colors duration-150 ${
                     paymentMethod === 'stripe'
                       ? 'bg-tv-blue text-white shadow-sm'
                       : 'text-tv-muted hover:text-white'
@@ -325,7 +325,7 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({
                 type="button"
                 onClick={handleConfirmPromptPayPayment}
                 disabled={isProcessing}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-extrabold text-xs shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-extrabold text-xs shadow-lg transition-colors duration-150 active:scale-[0.98] flex items-center justify-center gap-2"
               >
                 {isProcessing ? (
                   <span>Verifying Payment...</span>

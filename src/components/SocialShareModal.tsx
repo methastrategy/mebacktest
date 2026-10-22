@@ -387,7 +387,7 @@ export const SocialShareModal: React.FC<SocialShareModalProps> = ({
 
             <button
               onClick={handleDownload}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-md active:scale-[0.98]"
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black text-xs font-extrabold flex items-center gap-1.5 transition-colors duration-150 shadow-md active:scale-[0.98]"
             >
               <Download size={14} className="fill-black" />
               <span>Download Card</span>

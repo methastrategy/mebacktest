@@ -568,7 +568,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       <div className="absolute top-16 left-4 z-20 flex flex-col gap-1 bg-tv-surface/90 backdrop-blur border border-tv-border p-1 rounded-xl shadow-xl">
         <button
           onClick={() => handleSelectTool('NONE')}
-          className={`p-1.5 rounded-lg transition-all ${
+          className={`p-1.5 rounded-lg transition-colors duration-150 ${
             activeTool === 'NONE'
               ? 'bg-tv-blue text-white shadow-sm'
               : 'text-tv-muted hover:text-white hover:bg-tv-bg'
@@ -580,7 +580,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
         <button
           onClick={() => handleSelectTool('LINE')}
-          className={`p-1.5 rounded-lg transition-all ${
+          className={`p-1.5 rounded-lg transition-colors duration-150 ${
             activeTool === 'LINE'
               ? 'bg-amber-600 text-white shadow-sm'
               : 'text-tv-muted hover:text-amber-400 hover:bg-tv-bg'
@@ -592,7 +592,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
         <button
           onClick={() => handleSelectTool('SUPPLY')}
-          className={`p-1.5 rounded-lg transition-all ${
+          className={`p-1.5 rounded-lg transition-colors duration-150 ${
             activeTool === 'SUPPLY'
               ? 'bg-red-600 text-white shadow-sm'
               : 'text-tv-muted hover:text-red-400 hover:bg-tv-bg'
@@ -604,7 +604,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
         <button
           onClick={() => handleSelectTool('DEMAND')}
-          className={`p-1.5 rounded-lg transition-all ${
+          className={`p-1.5 rounded-lg transition-colors duration-150 ${
             activeTool === 'DEMAND'
               ? 'bg-emerald-600 text-white shadow-sm'
               : 'text-tv-muted hover:text-emerald-400 hover:bg-tv-bg'
@@ -673,7 +673,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
           <span className="text-[11px] font-semibold text-tv-muted mr-0.5">EMA:</span>
           <button
             onClick={() => setShowEma20((prev) => !prev)}
-            className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-all border ${
+            className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-colors duration-150 border ${
               showEma20
                 ? 'bg-sky-500/20 text-sky-400 border-sky-400/40 shadow-sm'
                 : 'text-tv-muted border-transparent hover:text-white'
@@ -684,7 +684,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
           </button>
           <button
             onClick={() => setShowEma50((prev) => !prev)}
-            className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-all border ${
+            className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-colors duration-150 border ${
               showEma50
                 ? 'bg-orange-500/20 text-orange-400 border-orange-400/40 shadow-sm'
                 : 'text-tv-muted border-transparent hover:text-white'
@@ -695,7 +695,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
           </button>
           <button
             onClick={() => setShowEma200((prev) => !prev)}
-            className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-all border ${
+            className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-colors duration-150 border ${
               showEma200
                 ? 'bg-purple-500/20 text-purple-400 border-purple-400/40 shadow-sm'
                 : 'text-tv-muted border-transparent hover:text-white'
@@ -714,7 +714,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
               <button
                 key={offset}
                 onClick={() => handleSetRightOffset(offset)}
-                className={`px-1.5 py-0.5 rounded text-[10px] font-mono transition-all border ${
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono transition-colors duration-150 border ${
                   rightOffset === offset
                     ? 'bg-tv-blue text-white border-tv-blue font-bold shadow-sm'
                     : 'text-tv-muted border-transparent hover:text-white'
@@ -749,7 +749,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
               chartRef.current.timeScale().scrollToRealTime();
             }
           }}
-          className={`px-2 sm:px-2.5 py-1 rounded-lg text-xs font-semibold border backdrop-blur shadow-lg transition-all flex items-center gap-1.5 ${
+          className={`px-2 sm:px-2.5 py-1 rounded-lg text-xs font-semibold border backdrop-blur shadow-lg transition-colors duration-150 flex items-center gap-1.5 ${
             autoScroll
               ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/40'
               : 'bg-tv-surface/90 text-tv-muted border-tv-border hover:text-white'

@@ -41,6 +41,15 @@ export const App: React.FC = () => {
   const [clickedChartPrice, setClickedChartPrice] = useState<number | undefined>();
   const [spreadPips, setSpreadPips] = useState<number>(25);
 
+  // Tier 3 Native View Transitions Engine
+  const transitionView = useCallback((fn: () => void) => {
+    if (typeof document !== 'undefined' && 'startViewTransition' in document) {
+      (document as any).startViewTransition(fn);
+    } else {
+      fn();
+    }
+  }, []);
+
   // Mobile Tab Navigation ('chart' | 'trade' | 'positions' | 'account')
   const [mobileTab, setMobileTab] = useState<'chart' | 'trade' | 'positions' | 'account'>('chart');
 
@@ -442,7 +451,7 @@ export const App: React.FC = () => {
           handleLoadCloudSession(remoteSess);
           setIsReadOnlySession(true);
           setSharedSessionTitle(remoteSess.title);
-          setIsLandingActive(false);
+          transitionView(() => setIsLandingActive(false));
           showToast(`🔍 กำลังดูเซสชันที่แชร์: ${remoteSess.title}`);
         }
       });
@@ -598,7 +607,7 @@ export const App: React.FC = () => {
         onOpenAffiliate={() => setIsAffiliateModalOpen(true)}
         onOpenFeedback={() => setIsFeedbackModalOpen(true)}
         onOpenAuth={() => setIsAuthModalOpen(true)}
-        onToggleLanding={() => setIsLandingActive(true)}
+        onToggleLanding={() => transitionView(() => setIsLandingActive(true))}
         currentUser={currentUser}
         isLandingActive={isLandingActive}
         isLoading={isLoading}
@@ -658,7 +667,7 @@ export const App: React.FC = () => {
           {/* Mobile Floating Floating P/L Pill (< lg) */}
           {accountState.openPositions.length > 0 && (
             <button
-              onClick={() => setMobileTab('positions')}
+              onClick={() => transitionView(() => setMobileTab('positions'))}
               className={`lg:hidden absolute top-14 left-3 z-20 px-2.5 py-1.5 rounded-full border shadow-xl flex items-center gap-1.5 text-xs font-mono font-bold backdrop-blur-md active:scale-95 transition-transform ${
                 accountState.unrealizedPnL >= 0
                   ? 'bg-emerald-950/85 border-emerald-500/50 text-emerald-300'
@@ -704,7 +713,7 @@ export const App: React.FC = () => {
                     </div>
                     <button
                       onClick={() => setIsQuickTradeOpen(false)}
-                      className="text-tv-muted hover:text-white p-1"
+                      className="text-tv-muted hover:text-white min-w-[44px] min-h-[44px] flex items-center justify-center -mr-2"
                     >
                       <X size={15} />
                     </button>
@@ -716,7 +725,7 @@ export const App: React.FC = () => {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => setQuickVolume((v) => Math.max(0.01, +(v - 0.05).toFixed(2)))}
-                        className="p-1 rounded-lg bg-tv-surface hover:bg-white/10 text-tv-text active:scale-90"
+                        className="p-1 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg bg-tv-surface hover:bg-white/10 text-tv-text active:scale-90"
                       >
                         <Minus size={13} />
                       </button>
@@ -731,7 +740,7 @@ export const App: React.FC = () => {
                       />
                       <button
                         onClick={() => setQuickVolume((v) => Math.min(50, +(v + 0.05).toFixed(2)))}
-                        className="p-1 rounded-lg bg-tv-surface hover:bg-white/10 text-tv-text active:scale-90"
+                        className="p-1 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg bg-tv-surface hover:bg-white/10 text-tv-text active:scale-90"
                       >
                         <Plus size={13} />
                       </button>
@@ -795,7 +804,7 @@ export const App: React.FC = () => {
                         setIsQuickTradeOpen(false);
                       }}
                       disabled={isReadOnlySession || !currentBar}
-                      className="py-2.5 px-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-extrabold text-xs shadow-lg flex flex-col items-center justify-center active:scale-95 transition-all disabled:opacity-40"
+                      className="py-3 px-2 min-h-[48px] rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-extrabold text-xs shadow-lg flex flex-col items-center justify-center active:scale-95 transition-colors duration-150 disabled:opacity-40"
                     >
                       <div className="flex items-center gap-1">
                         <TrendingDown size={14} />
@@ -820,7 +829,7 @@ export const App: React.FC = () => {
                         setIsQuickTradeOpen(false);
                       }}
                       disabled={isReadOnlySession || !currentBar}
-                      className="py-2.5 px-2 rounded-xl bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white font-extrabold text-xs shadow-lg flex flex-col items-center justify-center active:scale-95 transition-all disabled:opacity-40"
+                      className="py-3 px-2 min-h-[48px] rounded-xl bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white font-extrabold text-xs shadow-lg flex flex-col items-center justify-center active:scale-95 transition-colors duration-150 disabled:opacity-40"
                     >
                       <div className="flex items-center gap-1">
                         <TrendingUp size={14} />
@@ -836,9 +845,9 @@ export const App: React.FC = () => {
                   <button
                     onClick={() => {
                       setIsQuickTradeOpen(false);
-                      setMobileTab('trade');
+                      transitionView(() => setMobileTab('trade'));
                     }}
-                    className="text-[11px] text-tv-muted hover:text-amber-400 text-center transition-colors pt-0.5"
+                    className="text-[11px] text-tv-muted hover:text-amber-400 text-center transition-colors min-h-[44px] flex items-center justify-center pt-0.5"
                   >
                     เปิดพาเนลคำนวณความเสี่ยงละเอียด (Risk Calculator) →
                   </button>
@@ -894,7 +903,7 @@ export const App: React.FC = () => {
               onPlaceOrder={(params) => {
                 handlePlaceOrder(params);
                 if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-                  setMobileTab('chart');
+                  transitionView(() => setMobileTab('chart'));
                 }
               }}
               clickedPrice={clickedChartPrice}
@@ -941,7 +950,7 @@ export const App: React.FC = () => {
       {/* Mobile Bottom Navigation Bar (< lg) */}
       <nav className="lg:hidden h-14 bg-[#0a0d14] border-t border-tv-border flex items-center justify-around z-40 select-none px-2 shrink-0">
         <button
-          onClick={() => setMobileTab('chart')}
+          onClick={() => transitionView(() => setMobileTab('chart'))}
           className={`flex-1 flex flex-col items-center justify-center py-1 transition-colors ${
             mobileTab === 'chart' ? 'text-amber-400 font-bold' : 'text-tv-muted hover:text-white'
           }`}
@@ -951,7 +960,7 @@ export const App: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setMobileTab('trade')}
+          onClick={() => transitionView(() => setMobileTab('trade'))}
           className={`flex-1 flex flex-col items-center justify-center py-1 transition-colors ${
             mobileTab === 'trade' ? 'text-amber-400 font-bold' : 'text-tv-muted hover:text-white'
           }`}
@@ -976,7 +985,7 @@ export const App: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setMobileTab('account')}
+          onClick={() => transitionView(() => setMobileTab('account'))}
           className={`flex-1 flex flex-col items-center justify-center py-1 transition-colors ${
             mobileTab === 'account' ? 'text-amber-400 font-bold' : 'text-tv-muted hover:text-white'
           }`}

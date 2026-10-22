@@ -70,7 +70,7 @@ export const AffiliateModal: React.FC<AffiliateModalProps> = ({ isOpen, onClose 
 
           <button
             onClick={handleCopyLink}
-            className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-md shrink-0 active:scale-95"
+            className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold flex items-center justify-center gap-1.5 transition-colors duration-150 shadow-md shrink-0 active:scale-95"
           >
             {copied ? <Check size={14} /> : <Copy size={14} />}
             <span>{copied ? 'Copied!' : 'Copy Link'}</span>

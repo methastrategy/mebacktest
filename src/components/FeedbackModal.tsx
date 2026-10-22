@@ -87,7 +87,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose })
                     key={cat.id}
                     type="button"
                     onClick={() => setCategory(cat.id as any)}
-                    className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all text-left ${
+                    className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-colors duration-150 text-left ${
                       category === cat.id
                         ? 'bg-tv-blue/20 border-tv-blue text-white'
                         : 'bg-tv-bg border-tv-border text-tv-muted hover:text-tv-text'

@@ -197,7 +197,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             onClick={() => handleOAuthSignIn('google')}
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl bg-white hover:bg-gray-100 disabled:opacity-50 text-gray-900 font-semibold text-xs shadow-md transition-all active:scale-[0.98]"
+            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl bg-white hover:bg-gray-100 disabled:opacity-50 text-gray-900 font-semibold text-xs shadow-md transition-colors duration-150 active:scale-[0.98]"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path
@@ -223,7 +223,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             onClick={() => handleOAuthSignIn('discord')}
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-50 text-white font-semibold text-xs shadow-md transition-all active:scale-[0.98]"
+            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-50 text-white font-semibold text-xs shadow-md transition-colors duration-150 active:scale-[0.98]"
           >
             <Shield size={16} />
             Continue with Discord (Trader Guild)

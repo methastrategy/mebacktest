@@ -215,7 +215,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
                 onClick={() => handleTimeframeClick(tf)}
                 disabled={isLoading}
                 title={isTfLocked ? `${tf} requires Pro tier` : `Switch to ${tf}`}
-                className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[11px] sm:text-xs font-semibold transition-all relative ${
+                className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[11px] sm:text-xs font-semibold transition-colors duration-150 relative ${
                   currentTimeframe === tf
                     ? 'bg-tv-blue text-white shadow-sm'
                     : 'text-tv-muted hover:text-tv-text'
@@ -303,7 +303,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         {AuthService.getInstance().isInTrial() ? (
           <button
             onClick={() => onOpenUpgrade('pro_monthly')}
-            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 text-white text-[11px] sm:text-xs font-bold shadow-md transition-all active:scale-95"
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 text-white text-[11px] sm:text-xs font-bold shadow-md transition-colors duration-150 active:scale-95"
             title={`ทดลองใช้ Pro ฟรีเหลืออีก ${AuthService.getInstance().getTrialRemainingDays()} วัน — คลิกเพื่อรับสิทธิ์ส่วนลด Early Bird 30%`}
           >
             <Sparkles size={12} className="text-amber-300" />
@@ -312,7 +312,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         ) : !isPro ? (
           <button
             onClick={() => onOpenUpgrade('pro_monthly')}
-            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 text-black text-[11px] sm:text-xs font-extrabold shadow-md transition-all active:scale-95 animate-pulse"
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 text-black text-[11px] sm:text-xs font-extrabold shadow-md transition-colors duration-150 active:scale-95 animate-pulse"
           >
             <Crown size={12} className="fill-black" />
             <span className="hidden xs:inline sm:inline">Upgrade Pro</span>
@@ -383,7 +383,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         {/* Mobile Hamburger Menu Toggle (< lg) */}
         <button
           onClick={() => setIsMobileMenuOpen((prev) => !prev)}
-          className="lg:hidden p-1.5 text-tv-text hover:text-white hover:bg-tv-border/50 rounded-lg transition-colors border border-tv-border ml-0.5"
+          className="lg:hidden min-w-[44px] min-h-[44px] flex items-center justify-center text-tv-text hover:text-white hover:bg-tv-border/50 rounded-lg transition-colors duration-150 border border-tv-border ml-0.5"
           title="Open Menu"
         >
           {isMobileMenuOpen ? <X size={15} /> : <Menu size={15} />}
@@ -402,7 +402,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
             <span className="text-xs font-bold text-white uppercase tracking-wider">Features & Tools</span>
             <button
               onClick={() => setIsMobileMenuOpen(false)}
-              className="text-tv-muted hover:text-white p-1"
+              className="text-tv-muted hover:text-white min-w-[44px] min-h-[44px] flex items-center justify-center -mr-2"
             >
               <X size={14} />
             </button>

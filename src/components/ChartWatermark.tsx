@@ -10,7 +10,7 @@ export const ChartWatermark: React.FC<ChartWatermarkProps> = ({ onUpgradeClick }
     <div className="absolute top-16 left-6 z-10 pointer-events-auto select-none">
       <div
         onClick={onUpgradeClick}
-        className="group cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 hover:bg-black/70 backdrop-blur-md border border-white/10 hover:border-amber-500/50 transition-all duration-300 shadow-lg"
+        className="group cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 hover:bg-black/70 backdrop-blur-md border border-white/10 hover:border-amber-500/50 transition-colors duration-150 duration-300 shadow-lg"
       >
         <div className="w-5 h-5 rounded bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center text-black font-black text-[10px] shadow-sm">
           <Crown size={12} className="text-black fill-black" />

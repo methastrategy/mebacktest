@@ -379,10 +379,10 @@ export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
         <button
           onClick={handleBuy}
           disabled={!currentPrice || isReadOnly}
-          className={`flex flex-col items-center justify-center py-2.5 rounded-xl font-bold transition-all shadow-lg ${
+          className={`flex flex-col items-center justify-center py-2.5 rounded-xl font-bold transition-colors duration-150 shadow-lg ${
             isReadOnly
               ? 'bg-tv-surface text-tv-muted cursor-not-allowed border border-tv-border'
-              : 'bg-tv-green hover:bg-tv-greenHover active:scale-98 text-white shadow-tv-green/20'
+              : 'bg-tv-green hover:bg-tv-greenHover active:scale-[0.98] text-white shadow-tv-green/20'
           }`}
         >
           <div className="flex items-center gap-1.5 text-sm">
@@ -399,10 +399,10 @@ export const OrderEntryPanel: React.FC<OrderEntryPanelProps> = ({
         <button
           onClick={handleSell}
           disabled={!currentPrice || isReadOnly}
-          className={`flex flex-col items-center justify-center py-2.5 rounded-xl font-bold transition-all shadow-lg ${
+          className={`flex flex-col items-center justify-center py-2.5 rounded-xl font-bold transition-colors duration-150 shadow-lg ${
             isReadOnly
               ? 'bg-tv-surface text-tv-muted cursor-not-allowed border border-tv-border'
-              : 'bg-tv-red hover:bg-tv-redHover active:scale-98 text-white shadow-tv-red/20'
+              : 'bg-tv-red hover:bg-tv-redHover active:scale-[0.98] text-white shadow-tv-red/20'
           }`}
         >
           <div className="flex items-center gap-1.5 text-sm">

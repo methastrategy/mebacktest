@@ -83,7 +83,7 @@ export const ReplayControls: React.FC<ReplayControlsProps> = ({
               setShowMobileTools(false);
             }}
             title="สุ่มช่วงเวลาและสถานการณ์ใหม่"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-semibold"
+            className="flex items-center gap-1 px-3 min-h-[44px] rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-semibold"
           >
             <Dices size={14} />
             <span>สุ่ม</span>
@@ -95,7 +95,7 @@ export const ReplayControls: React.FC<ReplayControlsProps> = ({
               onToggleBlindMode();
               setShowMobileTools(false);
             }}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border ${
+            className={`flex items-center gap-1 px-3 min-h-[44px] rounded-xl text-xs font-medium border ${
               isBlindMode
                 ? 'bg-purple-950/80 border-purple-500/80 text-purple-200'
                 : 'bg-tv-bg border-tv-border text-tv-muted hover:text-tv-text'
@@ -111,7 +111,7 @@ export const ReplayControls: React.FC<ReplayControlsProps> = ({
               setShowDatePicker(true);
               setShowMobileTools(false);
             }}
-            className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-tv-bg border border-tv-border text-tv-text text-xs"
+            className="flex items-center gap-1 px-3 min-h-[44px] rounded-xl bg-tv-bg border border-tv-border text-tv-text text-xs"
           >
             <Calendar size={13} className="text-tv-muted" />
             <span>วันที่</span>
@@ -123,14 +123,14 @@ export const ReplayControls: React.FC<ReplayControlsProps> = ({
               onOpenHelp();
               setShowMobileTools(false);
             }}
-            className="p-1.5 text-tv-muted hover:text-white"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-tv-muted hover:text-white"
           >
             <HelpCircle size={15} />
           </button>
 
           <button
             onClick={() => setShowMobileTools(false)}
-            className="p-1 text-tv-muted hover:text-white ml-0.5"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-tv-muted hover:text-white ml-0.5"
           >
             <X size={14} />
           </button>
@@ -143,7 +143,7 @@ export const ReplayControls: React.FC<ReplayControlsProps> = ({
         <button
           onClick={onTogglePlay}
           title={isPlaying ? 'Pause Replay (Space)' : 'Play Replay (Space)'}
-          className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-md active:scale-95 ${
+          className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 min-h-[44px] rounded-xl font-bold text-xs sm:text-sm transition-colors duration-150 shadow-md active:scale-95 ${
             isPlaying
               ? 'bg-amber-600 hover:bg-amber-500 text-white ring-2 ring-amber-400/40'
               : 'bg-tv-blue hover:bg-blue-600 text-white'
@@ -158,7 +158,7 @@ export const ReplayControls: React.FC<ReplayControlsProps> = ({
           onClick={onStepForward}
           title="Next Bar (Spacebar / Right Arrow)"
           disabled={isPlaying || cursorIndex >= totalBars - 1}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-tv-border/80 hover:bg-tv-border text-tv-text hover:text-white text-xs sm:text-sm font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed border border-white/5 active:scale-95"
+          className="flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] rounded-xl bg-tv-border/80 hover:bg-tv-border text-tv-text hover:text-white text-xs sm:text-sm font-bold transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed border border-white/5 active:scale-95"
         >
           <SkipForward size={15} />
           <span>Step Bar</span>
@@ -168,7 +168,7 @@ export const ReplayControls: React.FC<ReplayControlsProps> = ({
         <button
           onClick={cycleSpeed}
           title="แตะเพื่อเปลี่ยนความเร็ว Replay"
-          className="sm:hidden px-2 py-1.5 rounded-xl bg-tv-bg/90 border border-tv-border text-xs font-mono font-bold text-amber-400 active:scale-95"
+          className="sm:hidden px-3 py-1.5 min-h-[44px] flex items-center rounded-xl bg-tv-bg/90 border border-tv-border text-xs font-mono font-bold text-amber-400 active:scale-95"
         >
           ⚡ {SPEED_OPTIONS.find((o) => o.ms === speedMs)?.label || '0.5s'}
         </button>
@@ -197,7 +197,7 @@ export const ReplayControls: React.FC<ReplayControlsProps> = ({
         <button
           onClick={onRandomScenario}
           title="สุ่มช่วงเวลาและสถานการณ์ใหม่ (Random Scenario Drill)"
-          className="hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-semibold transition-all shadow-md hover:shadow-purple-500/20 active:scale-95"
+          className="hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-semibold transition-colors duration-150 shadow-md hover:shadow-purple-500/20 active:scale-95"
         >
           <Dices size={15} className="animate-spin-once" />
           <span>สุ่มสถานการณ์</span>
@@ -207,7 +207,7 @@ export const ReplayControls: React.FC<ReplayControlsProps> = ({
         <button
           onClick={onToggleBlindMode}
           title={isBlindMode ? 'ปิด Blind Mode (แสดงวันที่)' : 'เปิด Blind Mode (ซ่อนวันที่เพื่อฝึกฝน)'}
-          className={`hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-all border ${
+          className={`hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-colors duration-150 border ${
             isBlindMode
               ? 'bg-purple-950/80 border-purple-500/80 text-purple-200'
               : 'bg-tv-bg border-tv-border text-tv-muted hover:text-tv-text'
@@ -249,7 +249,7 @@ export const ReplayControls: React.FC<ReplayControlsProps> = ({
         <button
           onClick={() => setShowMobileTools((prev) => !prev)}
           title="เครื่องมือเพิ่มเติม (Random, Blind Mode, Date)"
-          className={`sm:hidden p-1.5 rounded-xl border transition-colors ${
+          className={`sm:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border transition-colors duration-150 ${
             showMobileTools
               ? 'bg-tv-blue text-white border-tv-blue'
               : 'bg-tv-bg border-tv-border text-tv-muted hover:text-white'

@@ -23,7 +23,7 @@ export const PropFirmHUD: React.FC<PropFirmHUDProps> = ({
     return (
       <button
         onClick={onToggleEnabled}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-950/60 border border-indigo-500/40 hover:border-indigo-400 text-indigo-300 text-xs font-semibold shadow-md transition-all hover:scale-102"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-950/60 border border-indigo-500/40 hover:border-indigo-400 text-indigo-300 text-xs font-semibold shadow-md transition-colors duration-150 hover:scale-[1.02]"
         title="เปิดโหมดจำลองสอบกองทุน FTMO (Daily Loss 5%, Max Loss 10%)"
       >
         <ShieldCheck size={14} className="text-indigo-400" />
@@ -79,7 +79,7 @@ export const PropFirmHUD: React.FC<PropFirmHUDProps> = ({
         </div>
         <div className="w-full bg-tv-bg h-1.5 rounded-full overflow-hidden border border-white/5">
           <div
-            className="bg-emerald-500 h-full transition-all duration-300"
+            className="bg-emerald-500 h-full transition-[width] duration-300 ease-out"
             style={{ width: `${profitProgress}%` }}
           />
         </div>
@@ -106,7 +106,7 @@ export const PropFirmHUD: React.FC<PropFirmHUDProps> = ({
         </div>
         <div className="w-full bg-tv-bg h-1.5 rounded-full overflow-hidden border border-white/5">
           <div
-            className={`h-full transition-all duration-300 ${
+            className={`h-full transition-[width] duration-300 ease-out ${
               dailyProgress > 80
                 ? 'bg-red-500'
                 : dailyProgress > 50
@@ -139,7 +139,7 @@ export const PropFirmHUD: React.FC<PropFirmHUDProps> = ({
         </div>
         <div className="w-full bg-tv-bg h-1.5 rounded-full overflow-hidden border border-white/5">
           <div
-            className={`h-full transition-all duration-300 ${
+            className={`h-full transition-[width] duration-300 ease-out ${
               totalProgress > 80
                 ? 'bg-red-500'
                 : totalProgress > 50

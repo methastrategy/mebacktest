@@ -72,7 +72,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           ) : null}
           <button
             onClick={currentUser && !currentUser.id.startsWith('guest_') ? onLaunchTerminal : (onOpenAuth || onLaunchTerminal)}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-extrabold text-xs shadow-md transition-all active:scale-95 flex items-center gap-1.5"
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-extrabold text-xs shadow-md transition-colors duration-150 active:scale-95 flex items-center gap-1.5"
           >
             <Play size={13} className="fill-black" />
             <span>{currentUser && !currentUser.id.startsWith('guest_') ? 'Launch Terminal' : 'ทดลองใช้ฟรี 7 วัน'}</span>
@@ -111,7 +111,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
           <button
             onClick={currentUser && !currentUser.id.startsWith('guest_') ? onLaunchTerminal : (onOpenAuth || onLaunchTerminal)}
-            className="px-7 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-black text-sm shadow-[0_0_25px_rgba(245,158,11,0.3)] transition-all active:scale-95 flex items-center gap-2"
+            className="px-7 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-black text-sm shadow-[0_0_25px_rgba(245,158,11,0.3)] transition-colors duration-150 active:scale-95 flex items-center gap-2"
           >
             <Sparkles size={16} className="fill-black" />
             <span>
@@ -124,7 +124,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
           <button
             onClick={() => onOpenUpgrade('pro_monthly')}
-            className="px-6 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/15 text-white font-bold text-sm transition-all"
+            className="px-6 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/15 text-white font-bold text-sm transition-colors duration-150"
           >
             ดูรายละเอียดแพ็กเกจ Pro & Day Pass
           </button>
@@ -163,7 +163,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-amber-500/40 transition-all flex flex-col justify-between">
+          <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-amber-500/40 transition-colors duration-200 flex flex-col justify-between">
             <div>
               <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-4">
                 <Zap size={24} />
@@ -179,7 +179,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
           </div>
 
-          <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-amber-500/40 transition-all flex flex-col justify-between">
+          <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-amber-500/40 transition-colors duration-200 flex flex-col justify-between">
             <div>
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4">
                 <Shield size={24} />
@@ -195,7 +195,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
           </div>
 
-          <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-amber-500/40 transition-all flex flex-col justify-between">
+          <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-amber-500/40 transition-colors duration-200 flex flex-col justify-between">
             <div>
               <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-4">
                 <BarChart2 size={24} />
@@ -211,7 +211,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
           </div>
 
-          <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-amber-500/40 transition-all flex flex-col justify-between">
+          <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-amber-500/40 transition-colors duration-200 flex flex-col justify-between">
             <div>
               <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-4">
                 <Sliders size={24} />
@@ -227,7 +227,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
           </div>
 
-          <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-amber-500/40 transition-all flex flex-col justify-between">
+          <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-amber-500/40 transition-colors duration-200 flex flex-col justify-between">
             <div>
               <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 mb-4">
                 <Layers size={24} />
@@ -243,7 +243,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
           </div>
 
-          <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-amber-500/40 transition-all flex flex-col justify-between">
+          <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-amber-500/40 transition-colors duration-200 flex flex-col justify-between">
             <div>
               <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-4">
                 <QrCode size={24} />
@@ -440,7 +440,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
             <button
               onClick={() => onOpenUpgrade('pro_monthly')}
-              className="mt-6 w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 text-black font-extrabold text-xs shadow-md transition-all active:scale-95"
+              className="mt-6 w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 text-black font-extrabold text-xs shadow-md transition-colors duration-150 active:scale-95"
             >
               Subscribe Pro Monthly
             </button>
