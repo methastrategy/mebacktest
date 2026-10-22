@@ -274,7 +274,7 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({
                       <img
                         src={promptPayData.qrSvgData}
                         alt="PromptPay QR Code"
-                        className="w-44 h-44 object-contain rounded-lg"
+                        width={176} height={176} className="w-44 h-44 aspect-square object-contain rounded-lg"
                       />
                     )}
                   </div>

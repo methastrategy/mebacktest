@@ -152,7 +152,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </section>
 
       {/* Feature Pillars */}
-      <section id="features" className="py-20 px-6 max-w-6xl mx-auto border-t border-white/10">
+      <section id="features" className="py-20 px-6 max-w-6xl mx-auto border-t border-white/10 content-visibility-auto">
         <div className="text-center max-w-2xl mx-auto mb-14">
           <h2 className="text-xs font-bold text-amber-400 uppercase tracking-widest">
             ENGINEERED FOR SERIOUS TRADERS
@@ -262,7 +262,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </section>
 
       {/* Comparison Matrix Table */}
-      <section id="comparison" className="py-20 px-6 max-w-6xl mx-auto border-t border-white/10">
+      <section id="comparison" className="py-20 px-6 max-w-6xl mx-auto border-t border-white/10 content-visibility-auto">
         <div className="text-center max-w-2xl mx-auto mb-12">
           <h2 className="text-xs font-bold text-amber-400 uppercase tracking-widest">
             COMPETITIVE ADVANTAGE
@@ -332,7 +332,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-20 px-6 max-w-6xl mx-auto border-t border-white/10">
+      <section id="pricing" className="py-20 px-6 max-w-6xl mx-auto border-t border-white/10 content-visibility-auto">
         <div className="text-center max-w-2xl mx-auto mb-14">
           <h2 className="text-xs font-bold text-amber-400 uppercase tracking-widest">
             TRANSPARENT PRICING
@@ -481,7 +481,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-6 border-t border-white/10 text-center text-xs text-slate-500">
+      <footer className="py-12 px-6 border-t border-white/10 text-center text-xs text-slate-500 content-visibility-auto">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 rounded bg-amber-500 flex items-center justify-center font-black text-black text-[10px]">

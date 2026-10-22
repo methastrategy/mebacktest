@@ -357,7 +357,7 @@ export const SocialShareModal: React.FC<SocialShareModalProps> = ({
             <img
               src={dataUrl}
               alt="Social Share Card Preview"
-              className="w-full max-h-[50vh] object-contain rounded-xl shadow-2xl border border-white/10"
+              width={1200} height={630} className="w-full max-h-[50vh] aspect-[1200/630] object-contain rounded-xl shadow-2xl border border-white/10"
             />
           )}
         </div>
